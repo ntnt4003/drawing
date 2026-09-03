@@ -1,1 +1,2118 @@
-# drawing
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>図面寸法マーカー</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Yomogi&family=Zen+Maru+Gothic:wght@500;700;900&family=M+PLUS+1+Code:wght@500;700&display=swap');
+
+  :root {
+    --paper: #FBF3E3;
+    --paper-deep: #F4E7CC;
+    --paper-line: #E6D2A8;
+    --ink: #4A3427;
+    --ink-soft: #8A7460;
+    --coral: #FF6B5B;
+    --coral-deep: #E2503F;
+    --mint: #35CFA0;
+    --mint-deep: #1FA582;
+    --yellow: #FFC93C;
+    --yellow-deep: #E0A616;
+    --sky: #57B9EE;
+    --sky-deep: #2E93CC;
+    --mono: "M PLUS 1 Code", ui-monospace, "SF Mono", Consolas, monospace;
+    --sans: "Zen Maru Gothic", -apple-system, BlinkMacSystemFont, "Hiragino Sans", sans-serif;
+    --hand: "Yomogi", "Zen Maru Gothic", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; height: 100%;
+    background: var(--paper);
+    font-family: var(--sans);
+    color: var(--ink);
+  }
+  /* Creamy hand-made paper grain, everywhere */
+  body {
+    background-color: var(--paper);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
+  }
+  #app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* Header */
+  header {
+    background: var(--paper-deep);
+    color: var(--ink);
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    border-bottom: 4px solid var(--coral);
+    box-shadow: 0 3px 0 rgba(74,52,39,0.06);
+  }
+  header h1 {
+    font-family: var(--hand);
+    font-size: 24px;
+    font-weight: 400;
+    margin: 0;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    color: var(--coral-deep);
+    -webkit-text-stroke: 0.9px var(--coral-deep);
+    text-stroke: 0.9px var(--coral-deep);
+  }
+  header .sub {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--ink-soft);
+    margin-top: 1px;
+  }
+  .title-block { margin-right: 8px; }
+  #draftStatus { transition: color 0.2s ease; }
+  .spacer { flex: 1; }
+
+  button {
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: 13px;
+    border: 2.5px solid var(--ink);
+    background: var(--sky);
+    color: var(--ink);
+    padding: 8px 16px;
+    border-radius: 16px 20px 18px 22px;
+    cursor: pointer;
+    box-shadow: 3px 4px 0 rgba(74,52,39,0.28);
+    transition: transform 0.08s ease, box-shadow 0.08s ease, background 0.12s ease;
+  }
+  button:hover:not(:disabled) { background: var(--sky-deep); color: white; }
+  button:active:not(:disabled) {
+    transform: translate(2px, 3px);
+    box-shadow: 1px 1px 0 rgba(74,52,39,0.28);
+  }
+  button:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: 2px 2px 0 rgba(74,52,39,0.15); }
+  button.primary {
+    background: var(--coral);
+    border-color: var(--coral-deep);
+    color: white;
+    box-shadow: 3px 4px 0 var(--coral-deep);
+  }
+  button.primary:hover:not(:disabled) { background: var(--coral-deep); }
+  button.primary:active:not(:disabled) { box-shadow: 1px 1px 0 var(--coral-deep); }
+  button.ghost {
+    background: var(--paper);
+    border-color: var(--ink-soft);
+    box-shadow: 3px 4px 0 rgba(74,52,39,0.18);
+  }
+  button.ghost:hover:not(:disabled) { background: var(--paper-deep); color: var(--ink); }
+  #btnRepeatToggle.active {
+    background: var(--yellow);
+    border-color: var(--yellow-deep);
+    color: var(--ink);
+    font-family: var(--mono);
+    box-shadow: 3px 4px 0 var(--yellow-deep);
+  }
+  #btnRepeatToggle.active:hover { background: var(--yellow-deep); }
+  #btnPanToggle.active {
+    background: var(--mint);
+    border-color: var(--mint-deep);
+    color: var(--ink);
+    box-shadow: 3px 4px 0 var(--mint-deep);
+  }
+  #btnPanToggle.active:hover { background: var(--mint-deep); color: white; }
+  input[type="file"] { display: none; }
+
+  /* Main layout */
+  main {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  #canvasZoneWrapper {
+    flex: 1;
+    position: relative;
+    display: flex;
+    min-width: 0;
+  }
+  #canvasZone {
+    flex: 1;
+    background: #EFE1BE;
+    background-image:
+      linear-gradient(#E3D2A4 1px, transparent 1px),
+      linear-gradient(90deg, #E3D2A4 1px, transparent 1px);
+    background-size: 28px 28px;
+    overflow: auto;
+    display: flex;
+    align-items: flex-start;
+    padding: 36px;
+    position: relative;
+  }
+  #canvasStack {
+    position: relative;
+    box-shadow: 6px 8px 0 rgba(74,52,39,0.22);
+    background: white;
+    line-height: 0;
+    flex-shrink: 0;
+    margin: 0 auto;
+    border: 3px solid var(--ink);
+    border-radius: 6px;
+  }
+  .badgeEditInput {
+    position: absolute;
+    z-index: 30;
+    text-align: center;
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: 13px;
+    line-height: 1.2;
+    border: 2px solid var(--ink);
+    border-radius: 8px;
+    padding: 2px 3px;
+    background: white;
+    color: var(--ink);
+    outline: none;
+    box-shadow: 2px 3px 0 rgba(74,52,39,0.3);
+  }
+  #baseCanvas, #overlayCanvas {
+    position: absolute;
+    top: 0; left: 0;
+    display: block;
+  }
+  #overlayCanvas { cursor: crosshair; }
+
+  #canvasZone.dragover {
+    outline: 4px dashed var(--coral);
+    outline-offset: -10px;
+    background-color: #E9D9AE;
+  }
+  #dropHint {
+    display: none;
+    position: absolute;
+    inset: 0;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    background: rgba(74,52,39,0.5);
+    color: #FFF8E8;
+    font-family: var(--hand);
+    font-size: 22px;
+    letter-spacing: 0.02em;
+    z-index: 5;
+  }
+  #canvasZone.dragover #dropHint { display: flex; }
+
+  #emptyState {
+    color: var(--ink-soft);
+    text-align: center;
+    max-width: 360px;
+    margin: auto;
+    font-size: 14px;
+    line-height: 1.7;
+  }
+  #emptyState .icon { font-size: 34px; margin-bottom: 12px; }
+  #emptyState button { margin-top: 16px; }
+
+  /* Page nav bar */
+  #pageNav {
+    position: absolute;
+    bottom: 20px; left: 50%;
+    transform: translateX(-50%);
+    background: var(--ink);
+    color: #FFF8E8;
+    padding: 8px 16px;
+    border-radius: 22px;
+    display: none;
+    align-items: center;
+    gap: 12px;
+    font-family: var(--mono);
+    font-size: 13px;
+    box-shadow: 0 4px 0 rgba(0,0,0,0.2);
+  }
+  #pageNav button {
+    padding: 4px 10px;
+    background: transparent;
+    border: none;
+    color: #FFF8E8;
+    font-size: 15px;
+    box-shadow: none;
+  }
+  #pageNav button:hover:not(:disabled) { color: var(--yellow); background: transparent; }
+  .navFixedWidth { display: inline-block; min-width: 3.6em; text-align: center; }
+
+  /* Sidebar */
+  #sidebar {
+    width: 170px;
+    min-width: 130px;
+    flex-shrink: 0;
+    background: var(--paper-deep);
+    border-left: 3px solid var(--ink);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  #sidebarResizer {
+    width: 7px;
+    flex-shrink: 0;
+    cursor: col-resize;
+    background: var(--ink);
+    position: relative;
+  }
+  #sidebarResizer::after {
+    content: "";
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 3px; height: 28px;
+    background: var(--yellow);
+    border-radius: 2px;
+  }
+  #sidebarResizer:hover::after,
+  #sidebarResizer.resizing::after {
+    background: var(--coral);
+  }
+  #sidebar .sidebarHead {
+    padding: 10px 14px 8px;
+    border-bottom: 3px solid var(--paper-line);
+  }
+  #sidebar .sidebarHead p {
+    font-family: var(--sans);
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--ink);
+    margin: 0 0 6px;
+  }
+  #globalStyle { display: flex; flex-direction: column; gap: 1px; }
+  #annotationList {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px 12px;
+  }
+  .annCard {
+    background: #FFFDF6;
+    border: 2.5px solid var(--ink);
+    border-left: 7px solid var(--coral);
+    border-radius: 10px 14px 12px 16px;
+    padding: 7px 9px;
+    margin-bottom: 6px;
+    cursor: pointer;
+    box-shadow: 3px 4px 0 rgba(74,52,39,0.15);
+  }
+  .annCard:hover { box-shadow: 4px 5px 0 rgba(74,52,39,0.22); }
+  .annCard .row1 {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 5px;
+  }
+  .annCard .row1 .delBtn { margin-left: auto; }
+  .annCard .numBadge {
+    width: 38px; height: 24px;
+    min-width: 38px; max-width: 38px;
+    box-sizing: border-box;
+    border-radius: 12px;
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: -0.2px;
+    line-height: 20px;
+    color: white;
+    flex-shrink: 0;
+    border: 2px solid var(--ink);
+    outline: none;
+    text-align: center;
+    padding: 0;
+    margin: 0;
+    -webkit-appearance: none;
+    appearance: none;
+    cursor: text;
+  }
+  .annCard .numBadge:focus {
+    box-shadow: 0 0 0 2px var(--ink);
+  }
+  .annCard.dupWarning {
+    border-left-color: var(--coral-deep) !important;
+    background: #FFF1EE;
+  }
+  .dupNotice {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--coral-deep);
+    margin: 2px 0 6px;
+  }
+  .annCard .pageTag {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--ink-soft);
+  }
+  .colorRow { display: flex; align-items: center; flex-wrap: wrap; row-gap: 4px; margin-bottom: 0; }
+  .leaderToggle {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    font-family: var(--mono);
+    font-size: 9.5px;
+    color: var(--ink-soft);
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .leaderToggle input[type="checkbox"] {
+    width: 12px; height: 12px;
+    margin: 0;
+    accent-color: var(--coral);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .annCard .swatches { display: flex; gap: 5px; flex-shrink: 0; }
+  .swatch {
+    width: 13px; height: 13px;
+    border-radius: 50%;
+    border: 2px solid var(--ink);
+    cursor: pointer;
+  }
+  .swatch.active { outline: 2px solid var(--ink); outline-offset: 1.5px; }
+  .annCard input[type="text"] {
+    width: 100%;
+    font-family: var(--sans);
+    font-size: 12.5px;
+    border: 2px solid var(--paper-line);
+    border-radius: 8px;
+    padding: 5px 8px;
+    margin-bottom: 6px;
+    outline: none;
+    background: var(--paper);
+  }
+  .annCard input[type="text"]:focus { border-color: var(--sky); }
+  .annCard .row2 { display: flex; justify-content: flex-end; gap: 10px; margin-top: 5px; }
+  .bwRow {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 2px;
+    flex-wrap: nowrap;
+  }
+  .bwSlider {
+    flex: 1 1 0;
+    min-width: 36px;
+    width: auto;
+    accent-color: var(--coral);
+    height: 10px;
+  }
+  .bwLabel {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    font-weight: 700;
+    color: var(--ink);
+    white-space: nowrap;
+    flex: 0 0 auto;
+    text-align: left;
+  }
+  .annCard .delBtn {
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--coral-deep);
+    background: var(--paper);
+    border: 2px solid var(--ink);
+    border-radius: 8px;
+    box-shadow: 2px 2px 0 rgba(74,52,39,0.2);
+    padding: 3px 8px;
+    cursor: pointer;
+  }
+  .annCard .delBtn:hover {
+    background: var(--coral);
+    color: white;
+    box-shadow: 2px 2px 0 var(--coral-deep);
+  }
+
+  #sidebarEmpty {
+    padding: 24px 18px;
+    color: var(--ink-soft);
+    font-size: 12.5px;
+    line-height: 1.7;
+  }
+
+  #sidebarFoot {
+    padding: 8px 10px;
+    border-top: 3px solid var(--paper-line);
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  #sidebarFoot .count {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-soft);
+    margin-bottom: 2px;
+  }
+  #sidebarFoot button {
+    padding: 6px 8px;
+    border-radius: 10px 12px 11px 13px;
+    box-shadow: 2px 3px 0 rgba(74,52,39,0.2);
+    line-height: 1.2;
+  }
+  #sidebarFoot button:active:not(:disabled) { box-shadow: 1px 1px 0 rgba(74,52,39,0.2); }
+  #sidebarFoot button.primary { width: 100%; padding: 10px 8px; font-size: 14px; line-height: 1.35; white-space: pre-line; box-shadow: 2px 3px 0 var(--coral-deep); }
+  #sidebarFoot button.primary:active:not(:disabled) { box-shadow: 1px 1px 0 var(--coral-deep); }
+  #sidebarFoot button.ghost { width: 100%; font-size: 11px; }
+
+  @media (max-width: 760px) {
+    main { flex-direction: column; }
+    #sidebar { width: 100% !important; height: 40%; border-left: none; border-top: 3px solid var(--ink); }
+    #sidebarResizer { display: none; }
+    #canvasZone { padding: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <header>
+    <div class="title-block">
+      <h1>図面寸法マーカー</h1>
+      <div class="sub" id="draftStatus"></div>
+    </div>
+    <div class="spacer"></div>
+    <button id="btnPanToggle" class="ghost" title="オンにするか、Spaceキー／右クリック／中クリックを押しながらドラッグすると画面を移動できます">✋ 移動</button>
+    <button id="btnRepeatToggle" class="ghost" title="オンにすると、次に描く矩形が直前と同じ番号になります">同じ番号で連続</button>
+    <button id="btnExportProject" class="ghost" title="PDFと注釈をまとめてファイルとしてダウンロードします。ここから続きを再開できます。" style="display:none;">プロジェクトを保存</button>
+    <button id="btnImportProject" class="ghost" title="保存しておいたプロジェクトファイルを開いて続きから再開します">プロジェクトを開く</button>
+    <input type="file" id="projectFileInput" accept="application/json,.json">
+    <button id="btnUpload">PDFを開く</button>
+    <input type="file" id="fileInput" accept="application/pdf">
+  </header>
+
+  <main>
+    <div id="canvasZoneWrapper">
+      <div id="canvasZone">
+        <div id="dropHint">ここにPDFをドロップ</div>
+        <div id="emptyState">
+          <div class="icon">▦</div>
+          <div><strong>PDFをアップロードしてください</strong><br>
+          図面上の寸法箇所をドラッグして矩形を描くと、自動で番号が振られます。書き出し時は元のPDFに直接ベクター注釈を重ねるだけなので、画質は一切劣化しません。</div>
+          <button class="primary" id="btnUploadEmpty">PDFを選択</button>
+        </div>
+        <div id="canvasStack" style="display:none;">
+          <canvas id="baseCanvas"></canvas>
+          <canvas id="overlayCanvas"></canvas>
+        </div>
+      </div>
+      <div id="pageNav">
+        <button id="prevPage">◀</button>
+        <span id="pageLabel" class="navFixedWidth">1 / 1</span>
+        <button id="nextPage">▶</button>
+        <span style="width:1px;height:14px;background:#3A5468;"></span>
+        <button id="zoomOut">－</button>
+        <span id="zoomLabel" class="navFixedWidth">100%</span>
+        <button id="zoomIn">＋</button>
+      </div>
+    </div>
+
+    <div id="sidebarResizer"></div>
+    <div id="sidebar">
+      <div class="sidebarHead">
+        <p id="markerCountLabel">マーカー 0件</p>
+        <div id="globalStyle">
+          <div class="bwRow">
+            <span class="bwLabel" id="globalBwLabel">輪郭なし</span>
+            <input type="range" id="globalBwSlider" class="bwSlider" min="0" max="8" step="1" value="0">
+          </div>
+          <div class="bwRow">
+            <span class="bwLabel" id="globalOpLabel">塗り 30%</span>
+            <input type="range" id="globalOpSlider" class="bwSlider" min="0" max="100" step="5" value="30">
+          </div>
+          <div class="bwRow">
+            <span class="bwLabel" id="globalFsLabel">文字 6px</span>
+            <input type="range" id="globalFsSlider" class="bwSlider" min="6" max="24" step="1" value="6">
+          </div>
+        </div>
+      </div>
+      <div id="annotationList">
+        <div id="sidebarEmpty">まだマーカーがありません。左側の図面上をドラッグして矩形を作成してください。カードをクリックすると該当ページへジャンプします。</div>
+      </div>
+      <div id="sidebarFoot" style="display:none;">
+        <button class="ghost" id="btnRenumber">配置順で採番し直す</button>
+        <button class="ghost" id="btnClearAll">すべて削除</button>
+        <button class="primary" id="btnExport">この内容で
+PDFを書き出す</button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+const COLORS = {
+  yellow: { hex: "#FFC93C", rgb: [1.0, 0.78824, 0.23529], textHex: "#4A3427", textRgb: [0.29020, 0.20392, 0.15294] },
+  blue:   { hex: "#57B9EE", rgb: [0.34118, 0.72549, 0.93333], textHex: "#4A3427", textRgb: [0.29020, 0.20392, 0.15294] },
+  green:  { hex: "#35CFA0", rgb: [0.20784, 0.81176, 0.62745], textHex: "#FFFFFF", textRgb: [1, 1, 1] },
+  red:    { hex: "#FF6B5B", rgb: [1.0, 0.41961, 0.35686], textHex: "#FFFFFF", textRgb: [1, 1, 1] },
+};
+const DEFAULT_COLOR = "yellow";
+const DEFAULT_BORDER_WIDTH = 0;
+const DEFAULT_OPACITY = 0.30;
+const DEFAULT_FONT_SIZE = 6;
+
+
+let pdfBytesOriginal = null;   // ArrayBuffer, untouched, used for export
+let pdfDocProxy = null;        // pdf.js document
+let numPages = 0;
+let currentPage = 1;
+let scale = 1.4;               // controls CSS display size + coordinate mapping (unrelated to sharpness)
+let currentViewport = null;
+const RENDER_QUALITY = 2;      // extra internal resolution multiplier for crisp text/lines
+const MAX_CANVAS_DIM = 4096;   // safety cap on backing-store pixel size
+let annotations = [];          // {id, page, x, y, w, h (pdf pts, bottom-left origin), number, note, color}
+let nextId = 1;
+let repeatMode = false;
+let lastNumber = null;
+let currentFileName = null;
+let lastColor = DEFAULT_COLOR; // color stays per-marker; this is just the default for new ones
+let globalBorderWidth = DEFAULT_BORDER_WIDTH; // shared by all markers
+let globalOpacity = DEFAULT_OPACITY;          // shared by all markers
+let globalFontSize = DEFAULT_FONT_SIZE;       // shared by all markers
+
+let drawing = false;
+let dragStart = null;
+let dragCurrent = null;
+
+const el = (id) => document.getElementById(id);
+const baseCanvas = el("baseCanvas");
+const overlayCanvas = el("overlayCanvas");
+const baseCtx = baseCanvas.getContext("2d");
+const overlayCtx = overlayCanvas.getContext("2d");
+
+// ---------- File loading ----------
+el("btnUpload").addEventListener("click", () => el("fileInput").click());
+el("btnRepeatToggle").addEventListener("click", () => {
+  repeatMode = !repeatMode;
+  el("btnRepeatToggle").classList.toggle("active", repeatMode);
+  updateRepeatButtonLabel();
+});
+el("btnUploadEmpty").addEventListener("click", () => el("fileInput").click());
+el("fileInput").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  if (file) await loadPdf(file);
+});
+
+const canvasZone = el("canvasZone");
+
+// ---------- Sidebar resize ----------
+(function setupSidebarResize() {
+  const resizer = el("sidebarResizer");
+  const sidebar = el("sidebar");
+  const MIN_W = 130, MAX_W = 560;
+  let resizing = false, startX = 0, startWidth = 0;
+
+  resizer.addEventListener("mousedown", (evt) => {
+    resizing = true;
+    startX = evt.clientX;
+    startWidth = sidebar.getBoundingClientRect().width;
+    resizer.classList.add("resizing");
+    document.body.style.userSelect = "none";
+    evt.preventDefault();
+  });
+  window.addEventListener("mousemove", (evt) => {
+    if (!resizing) return;
+    const delta = evt.clientX - startX;
+    const newWidth = Math.min(MAX_W, Math.max(MIN_W, startWidth - delta));
+    sidebar.style.width = newWidth + "px";
+  });
+  window.addEventListener("mouseup", () => {
+    if (!resizing) return;
+    resizing = false;
+    resizer.classList.remove("resizing");
+    document.body.style.userSelect = "";
+  });
+})();
+let dragDepth = 0;
+
+["dragenter", "dragover", "dragleave", "drop"].forEach(evtName => {
+  canvasZone.addEventListener(evtName, (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  });
+});
+
+canvasZone.addEventListener("dragenter", () => {
+  dragDepth++;
+  canvasZone.classList.add("dragover");
+});
+canvasZone.addEventListener("dragleave", () => {
+  dragDepth = Math.max(0, dragDepth - 1);
+  if (dragDepth === 0) canvasZone.classList.remove("dragover");
+});
+canvasZone.addEventListener("drop", async (e) => {
+  dragDepth = 0;
+  canvasZone.classList.remove("dragover");
+  const files = e.dataTransfer.files;
+  if (!files || files.length === 0) return;
+  const file = files[0];
+  if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+    alert("PDFファイルをドロップしてください。");
+    return;
+  }
+  await loadPdf(file);
+});
+
+// ---------- Project file support (base64 helpers + shared state restore) ----------
+function bufferToBase64(buf) {
+  const bytes = new Uint8Array(buf);
+  let binary = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+function base64ToBuffer(b64) {
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes.buffer;
+}
+
+function applyDraftState(draft) {
+  annotations = draft.annotations || [];
+  currentPage = Math.min(draft.currentPage || 1, numPages);
+  scale = draft.scale || scale;
+  nextId = draft.nextId || (annotations.reduce((m, a) => Math.max(m, a.id), 0) + 1);
+  if (annotations.length > 0) {
+    const first = annotations[0];
+    globalBorderWidth = first.borderWidth ?? DEFAULT_BORDER_WIDTH;
+    globalOpacity = first.opacity ?? DEFAULT_OPACITY;
+    globalFontSize = first.fontSize ?? DEFAULT_FONT_SIZE;
+    lastColor = annotations[annotations.length - 1].color || DEFAULT_COLOR;
+    syncGlobalStyleUI();
+  }
+}
+
+function syncGlobalStyleUI() {
+  const bwSlider = el("globalBwSlider"), bwLabel = el("globalBwLabel");
+  const opSlider = el("globalOpSlider"), opLabel = el("globalOpLabel");
+  const fsSlider = el("globalFsSlider"), fsLabel = el("globalFsLabel");
+  bwSlider.value = String(globalBorderWidth);
+  bwLabel.textContent = globalBorderWidth === 0 ? "輪郭なし" : `輪郭 ${globalBorderWidth}px`;
+  opSlider.value = String(Math.round(globalOpacity * 100));
+  opLabel.textContent = `塗り ${Math.round(globalOpacity * 100)}%`;
+  fsSlider.value = String(globalFontSize);
+  fsLabel.textContent = `文字 ${globalFontSize}px`;
+}
+
+// ---------- Project file (download/open) — a portable resume file the user keeps themselves ----------
+function buildProjectPayload() {
+  return {
+    kind: "pdf-dimension-marker-project",
+    version: 1,
+    fileName: currentFileName,
+    numPages, currentPage, scale,
+    annotations, nextId,
+    savedAt: Date.now(),
+    pdfBase64: bufferToBase64(pdfBytesOriginal),
+  };
+}
+
+el("btnExportProject").addEventListener("click", () => {
+  if (!pdfBytesOriginal) return;
+  try {
+    const payload = buildProjectPayload();
+    const json = JSON.stringify(payload);
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const baseName = (currentFileName || "drawing.pdf").replace(/\.pdf$/i, "");
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${baseName}.marker.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    setDraftStatus("プロジェクトファイルをダウンロードしました", false);
+  } catch (err) {
+    console.error("project export failed", err);
+    setDraftStatus("プロジェクトファイルの保存に失敗しました", true);
+  }
+});
+
+el("btnImportProject").addEventListener("click", () => el("projectFileInput").click());
+el("projectFileInput").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  e.target.value = ""; // allow re-selecting the same file later
+  if (!file) return;
+  if (!confirmDiscardIfNeeded()) return;
+
+  let text, project;
+  try {
+    text = await file.text();
+  } catch (err) {
+    console.error("project file read failed", err);
+    alert("ファイルを読み込めませんでした: " + err.message);
+    return;
+  }
+
+  try {
+    project = JSON.parse(text);
+  } catch (err) {
+    console.error("project JSON parse failed", err, "first 200 chars:", text.slice(0, 200));
+    alert("このファイルはJSONとして解釈できませんでした。プロジェクトファイル（.json）以外を選んでいないか確認してください。\n\n詳細: " + err.message);
+    return;
+  }
+
+  if (!project || typeof project !== "object") {
+    alert("このファイルの中身がプロジェクトデータの形式ではありませんでした。");
+    return;
+  }
+  if (!project.pdfBase64 || typeof project.pdfBase64 !== "string" || project.pdfBase64.length < 100) {
+    alert("このファイルにはPDFのデータが含まれていないか、空のようです。\n（保存時にPDFが大きすぎて含められなかった可能性があります）");
+    return;
+  }
+
+  let buf;
+  try {
+    buf = base64ToBuffer(project.pdfBase64);
+    if (!buf || buf.byteLength < 100) {
+      throw new Error("decoded PDF data is empty (byteLength=" + (buf ? buf.byteLength : 0) + ")");
+    }
+  } catch (err) {
+    console.error("project pdfBase64 decode failed", err);
+    alert("PDFデータのデコードに失敗しました。ファイルが壊れている可能性があります。\n\n詳細: " + err.message);
+    return;
+  }
+
+  try {
+    await loadPdfCore(buf, project.fileName);
+    applyDraftState(project);
+    await renderPage(currentPage);
+    updateSidebar();
+    setDraftStatus("プロジェクトファイルから復元しました", false);
+  } catch (err) {
+    console.error("project PDF parse failed", err);
+    alert("PDFとして読み込めませんでした。PDFデータ自体が壊れている可能性があります。\n\n詳細: " + err.message);
+  }
+});
+
+function setDraftStatus(text, isError) {
+  const elStatus = el("draftStatus");
+  elStatus.textContent = text;
+  elStatus.style.color = isError ? "#E39B8F" : "";
+  clearTimeout(setDraftStatus._t);
+  setDraftStatus._t = setTimeout(() => {
+    elStatus.textContent = "";
+    elStatus.style.color = "";
+  }, 3200);
+}
+
+// scheduleAutoSave is a no-op now that the browser-storage draft feature has
+// been removed; kept as a stub so the many call sites elsewhere don't need touching.
+function scheduleAutoSave() {}
+
+// ---------- Global style (applies to every marker, color stays per-marker) ----------
+(function setupGlobalStyleControls() {
+  const bwSlider = el("globalBwSlider"), bwLabel = el("globalBwLabel");
+  const opSlider = el("globalOpSlider"), opLabel = el("globalOpLabel");
+  const fsSlider = el("globalFsSlider"), fsLabel = el("globalFsLabel");
+
+  syncGlobalStyleUI();
+
+  bwSlider.addEventListener("input", (ev) => {
+    const v = parseInt(ev.target.value, 10);
+    globalBorderWidth = v;
+    annotations.forEach(a => { a.borderWidth = v; });
+    bwLabel.textContent = v === 0 ? "輪郭なし" : `輪郭 ${v}px`;
+    redrawOverlay();
+  });
+  opSlider.addEventListener("input", (ev) => {
+    const v = parseInt(ev.target.value, 10);
+    globalOpacity = v / 100;
+    annotations.forEach(a => { a.opacity = globalOpacity; });
+    opLabel.textContent = `塗り ${v}%`;
+    redrawOverlay();
+  });
+  fsSlider.addEventListener("input", (ev) => {
+    const v = parseInt(ev.target.value, 10);
+    globalFontSize = v;
+    annotations.forEach(a => { a.fontSize = v; });
+    fsLabel.textContent = `文字 ${v}px`;
+    redrawOverlay();
+  });
+})();
+
+function hasUnsavedWork() {
+  return !!pdfBytesOriginal && annotations.length > 0;
+}
+
+function confirmDiscardIfNeeded() {
+  if (!hasUnsavedWork()) return true;
+  return confirm("編集中のマーカーは保存されていません。破棄して新しいファイルを開きますか？");
+}
+
+// Defensive cleanup so switching files mid-session never leaves a stray DOM
+// node (like an open badge-number editor) or a dangling interaction state
+// pointing at annotations that are about to be discarded.
+function resetInteractionState() {
+  document.querySelectorAll(".badgeEditInput").forEach(elInput => elInput.remove());
+  drawing = false;
+  dragStart = null;
+  dragCurrent = null;
+  draggingBadge = null;
+  dragBadgeStartCanvasPt = null;
+  dragBadgeStartOffset = null;
+  resizingHandle = null;
+  movingRect = null;
+  rotatingHandle = null;
+  selectedAnnId = null;
+  isPanning = false;
+  panStart = null;
+}
+
+async function loadPdf(file) {
+  if (!confirmDiscardIfNeeded()) return;
+  resetInteractionState();
+  const buf = await file.arrayBuffer();
+  await loadPdfCore(buf, file.name);
+}
+
+async function loadPdfCore(buf, fileName) {
+  resetInteractionState();
+  pdfBytesOriginal = buf.slice(0); // keep pristine copy
+  currentFileName = fileName || "drawing.pdf";
+  const loadingTask = pdfjsLib.getDocument({
+    data: buf.slice(0),
+    // Some PDFs (especially ones with CJK/CID-keyed embedded fonts, common
+    // from CAD/technical-drawing software) need external CMap resources to
+    // map character codes to glyphs. Without these, pdf.js silently fails to
+    // render the TEXT (outlines/lines still render fine, since those don't
+    // depend on fonts) — the text was always in the file, it just couldn't
+    // be drawn in this preview. The export is unaffected either way, since
+    // pdf-lib copies the original font data through untouched.
+    cMapUrl: "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/cmaps/",
+    cMapPacked: true,
+    standardFontDataUrl: "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/standard_fonts/",
+  });
+  pdfDocProxy = await loadingTask.promise;
+  numPages = pdfDocProxy.numPages;
+  currentPage = 1;
+  annotations = [];
+  nextId = 1;
+  repeatMode = false;
+  lastNumber = null;
+  selectedAnnId = null;
+  el("btnRepeatToggle").classList.remove("active");
+  updateRepeatButtonLabel();
+
+  el("emptyState").style.display = "none";
+  el("canvasStack").style.display = "block";
+  el("pageNav").style.display = numPages > 1 || true ? "flex" : "none";
+  el("sidebarFoot").style.display = "flex";
+  el("btnExportProject").style.display = "inline-block";
+
+  await renderPage(currentPage);
+  updateSidebar();
+}
+
+// ---------- Rendering ----------
+// Split into a cheap "layout" pass (viewport math + resizing + overlay redraw,
+// which is fast) and an expensive "commit" pass (the actual PDF rasterization,
+// which is comparatively slow). Continuous zoom gestures call layout on every
+// tick for instant feedback (CSS-stretching the existing bitmap) and debounce
+// the expensive commit until the gesture settles, so zooming feels smooth.
+let baseRenderToken = 0;
+
+async function layoutForScale(pageNum, newScale) {
+  const page = await pdfDocProxy.getPage(pageNum);
+  const viewport = page.getViewport({ scale: newScale });
+  currentViewport = viewport;
+
+  const stack = el("canvasStack");
+  stack.style.width = viewport.width + "px";
+  stack.style.height = viewport.height + "px";
+  overlayCanvas.style.width = viewport.width + "px";
+  overlayCanvas.style.height = viewport.height + "px";
+  // Instantly stretch the existing raster bitmap via CSS while a crisp
+  // re-render happens in the background — avoids re-rasterizing every tick.
+  baseCanvas.style.width = viewport.width + "px";
+  baseCanvas.style.height = viewport.height + "px";
+
+  const dpr = window.devicePixelRatio || 1;
+  overlayCanvas.width = Math.round(viewport.width * dpr);
+  overlayCanvas.height = Math.round(viewport.height * dpr);
+  overlayCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  updatePageNav();
+  redrawOverlay();
+}
+
+async function commitBaseRender(pageNum) {
+  const myToken = ++baseRenderToken;
+  const page = await pdfDocProxy.getPage(pageNum);
+  const viewport = page.getViewport({ scale });
+  if (myToken !== baseRenderToken) return; // superseded by a newer request
+
+  const dpr = window.devicePixelRatio || 1;
+  let renderFactor = dpr * RENDER_QUALITY;
+  const maxDim = Math.max(viewport.width, viewport.height) * renderFactor;
+  if (maxDim > MAX_CANVAS_DIM) {
+    renderFactor *= MAX_CANVAS_DIM / maxDim;
+  }
+
+  baseCanvas.width = Math.round(viewport.width * renderFactor);
+  baseCanvas.height = Math.round(viewport.height * renderFactor);
+  baseCtx.setTransform(renderFactor, 0, 0, renderFactor, 0, 0);
+
+  await page.render({ canvasContext: baseCtx, viewport }).promise;
+  if (myToken !== baseRenderToken) return; // superseded while rendering
+
+  currentViewport = viewport;
+  baseCanvas.style.width = viewport.width + "px";
+  baseCanvas.style.height = viewport.height + "px";
+  redrawOverlay();
+}
+
+async function renderPage(pageNum) {
+  await layoutForScale(pageNum, scale);
+  await commitBaseRender(pageNum);
+}
+
+let zoomRenderTimer = null;
+function scheduleBaseRender(delay) {
+  clearTimeout(zoomRenderTimer);
+  zoomRenderTimer = setTimeout(() => {
+    commitBaseRender(currentPage);
+    scheduleAutoSave();
+  }, delay);
+}
+
+function updatePageNav() {
+  el("pageLabel").textContent = `${currentPage} / ${numPages}`;
+  el("zoomLabel").textContent = Math.round((scale / 1.4) * 100) + "%";
+  el("prevPage").disabled = currentPage <= 1;
+  el("nextPage").disabled = currentPage >= numPages;
+}
+
+el("prevPage").addEventListener("click", async () => {
+  if (currentPage > 1) { currentPage--; selectedAnnId = null; await renderPage(currentPage); scheduleAutoSave(); }
+});
+el("nextPage").addEventListener("click", async () => {
+  if (currentPage < numPages) { currentPage++; selectedAnnId = null; await renderPage(currentPage); scheduleAutoSave(); }
+});
+el("zoomIn").addEventListener("click", async () => {
+  const curPercent = Math.round((scale / 1.4) * 100);
+  const nextPercent = Math.floor(curPercent / 10) * 10 + 10;
+  scale = Math.min((nextPercent / 100) * 1.4, 10);
+  await layoutForScale(currentPage, scale);
+  scheduleBaseRender(120);
+});
+el("zoomOut").addEventListener("click", async () => {
+  const curPercent = Math.round((scale / 1.4) * 100);
+  const nextPercent = Math.max(5, Math.ceil(curPercent / 10) * 10 - 10);
+  scale = Math.max((nextPercent / 100) * 1.4, 0.1);
+  await layoutForScale(currentPage, scale);
+  scheduleBaseRender(120);
+});
+
+// Ctrl + wheel (and trackpad pinch, which browsers report the same way) zooms
+// only the drawing canvas, toward the cursor — never the whole page/UI.
+// Snapped to 10% steps, same granularity as the +/- buttons.
+let wheelZoomAccum = 0;
+canvasZone.addEventListener("wheel", (evt) => {
+  if (!evt.ctrlKey || !pdfDocProxy) return;
+  evt.preventDefault();
+  wheelZoomAccum += evt.deltaY;
+  const THRESHOLD = 50; // roughly half a mouse-wheel notch
+  if (Math.abs(wheelZoomAccum) < THRESHOLD) return;
+  const zoomingIn = wheelZoomAccum < 0;
+  wheelZoomAccum = 0;
+
+  const curPercent = Math.round((scale / 1.4) * 100);
+  const nextPercent = zoomingIn
+    ? Math.floor(curPercent / 10) * 10 + 10
+    : Math.max(5, Math.ceil(curPercent / 10) * 10 - 10);
+  const newScale = Math.min(10, Math.max(0.1, (nextPercent / 100) * 1.4));
+  zoomAtPoint(newScale, evt);
+  scheduleBaseRender(150);
+}, { passive: false });
+
+async function zoomAtPoint(newScale, evt) {
+  const oldPt = getCanvasPoint(evt); // relative to the canvas, before re-layout
+  const pdfPt = currentViewport.convertToPdfPoint(oldPt.x, oldPt.y);
+
+  scale = newScale;
+  await layoutForScale(currentPage, scale); // cheap — no re-rasterization here
+
+  const newLocal = currentViewport.convertToViewportPoint(pdfPt[0], pdfPt[1]);
+  const stackRect = el("canvasStack").getBoundingClientRect();
+  const zoneRect = canvasZone.getBoundingClientRect();
+  const stackContentOffsetX = stackRect.left - zoneRect.left + canvasZone.scrollLeft;
+  const stackContentOffsetY = stackRect.top - zoneRect.top + canvasZone.scrollTop;
+  canvasZone.scrollLeft = stackContentOffsetX + newLocal[0] - (evt.clientX - zoneRect.left);
+  canvasZone.scrollTop = stackContentOffsetY + newLocal[1] - (evt.clientY - zoneRect.top);
+}
+
+// ---------- Overlay drawing ----------
+function redrawOverlay() {
+  overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+  const pageAnns = annotations.filter(a => a.page === currentPage);
+  pageAnns.forEach(a => drawAnnotationOnOverlay(a));
+  const selAnn = pageAnns.find(a => a.id === selectedAnnId);
+  if (selAnn) drawSelectionHandles(selAnn);
+  if (drawing && dragStart && dragCurrent) {
+    drawPreviewRect(dragStart, dragCurrent);
+  }
+}
+
+function drawSelectionHandles(a) {
+  const corners = rectScreenCorners(a);
+  overlayCtx.save();
+  overlayCtx.strokeStyle = "#4A3427";
+  overlayCtx.lineWidth = 1.5;
+  overlayCtx.setLineDash([4, 3]);
+  overlayCtx.beginPath();
+  overlayCtx.moveTo(corners[0][0], corners[0][1]);
+  for (let i = 1; i < 4; i++) overlayCtx.lineTo(corners[i][0], corners[i][1]);
+  overlayCtx.closePath();
+  overlayCtx.stroke();
+  overlayCtx.setLineDash([]);
+
+  const handles = rectHandlePositions(a);
+  Object.keys(handles).forEach(key => {
+    const p = handles[key];
+    overlayCtx.fillStyle = "white";
+    overlayCtx.fillRect(p.x - HANDLE_SIZE / 2, p.y - HANDLE_SIZE / 2, HANDLE_SIZE, HANDLE_SIZE);
+    overlayCtx.lineWidth = 1.5;
+    overlayCtx.strokeStyle = "#4A3427";
+    overlayCtx.strokeRect(p.x - HANDLE_SIZE / 2, p.y - HANDLE_SIZE / 2, HANDLE_SIZE, HANDLE_SIZE);
+  });
+
+  const rot = rotateHandlePosition(a);
+  overlayCtx.beginPath();
+  overlayCtx.moveTo(rot.stemFrom.x, rot.stemFrom.y);
+  overlayCtx.lineTo(rot.x, rot.y);
+  overlayCtx.strokeStyle = "#4A3427";
+  overlayCtx.lineWidth = 1.5;
+  overlayCtx.stroke();
+  overlayCtx.beginPath();
+  overlayCtx.arc(rot.x, rot.y, HANDLE_SIZE / 2 + 1, 0, Math.PI * 2);
+  overlayCtx.fillStyle = "white";
+  overlayCtx.fill();
+  overlayCtx.lineWidth = 1.5;
+  overlayCtx.strokeStyle = "#4A3427";
+  overlayCtx.stroke();
+
+  overlayCtx.restore();
+}
+
+// ---------- Rotation geometry (all in PDF-space, rotation is degrees, standard
+// math counter-clockwise convention around the rectangle's own center) ----------
+function rotationRad(a) {
+  return ((a.rotation || 0) * Math.PI) / 180;
+}
+
+function rotateVec(theta, x, y) {
+  const cos = Math.cos(theta), sin = Math.sin(theta);
+  return { x: x * cos - y * sin, y: x * sin + y * cos };
+}
+
+// A local (unrotated) offset relative to the rect's center, rotated into PDF space.
+function rotateOffsetToPdf(a, offX, offY) {
+  const cx = a.x + a.w / 2, cy = a.y + a.h / 2;
+  const v = rotateVec(rotationRad(a), offX, offY);
+  return { x: cx + v.x, y: cy + v.y };
+}
+
+// The 4 corners of the rectangle in PDF space, rotated around its center.
+// Order: bottom-left, bottom-right, top-right, top-left.
+function rotatedCorners(a) {
+  const hw = a.w / 2, hh = a.h / 2;
+  return [
+    rotateOffsetToPdf(a, -hw, -hh),
+    rotateOffsetToPdf(a, hw, -hh),
+    rotateOffsetToPdf(a, hw, hh),
+    rotateOffsetToPdf(a, -hw, hh),
+  ];
+}
+
+// Convert a PDF-space point into the rectangle's own local (unrotated) frame —
+// makes hit-testing on a rotated rect as simple as the axis-aligned case.
+function pdfPointToLocalFrame(a, pt) {
+  const cx = a.x + a.w / 2, cy = a.y + a.h / 2;
+  const v = rotateVec(-rotationRad(a), pt.x - cx, pt.y - cy);
+  return { x: cx + v.x, y: cy + v.y };
+}
+
+// Convert a mouse-drag delta from global PDF space into the rectangle's local
+// (unrotated) frame, so dragging along the rect's own edges works correctly.
+function globalDeltaToLocal(a, dx, dy) {
+  return rotateVec(-rotationRad(a), dx, dy);
+}
+
+// Which local offset (relative to center, using the given w/h) stays fixed
+// when resizing via this handle — i.e. the opposite edge/corner.
+function anchorOffsetForHandle(handle, w, h) {
+  let x = 0, y = 0;
+  if (handle.indexOf("e") !== -1) x = -w / 2;
+  else if (handle.indexOf("w") !== -1) x = w / 2;
+  if (handle.indexOf("n") !== -1) y = -h / 2;
+  else if (handle.indexOf("s") !== -1) y = h / 2;
+  return { x, y };
+}
+
+function pdfRectToScreen(a) {
+  // a.x, a.y = bottom-left corner in pdf points; a.w/h = size in pdf points
+  const p1 = currentViewport.convertToViewportPoint(a.x, a.y);
+  const p2 = currentViewport.convertToViewportPoint(a.x + a.w, a.y + a.h);
+  const sx = Math.min(p1[0], p2[0]);
+  const sy = Math.min(p1[1], p2[1]);
+  const sw = Math.abs(p2[0] - p1[0]);
+  const sh = Math.abs(p2[1] - p1[1]);
+  return { sx, sy, sw, sh };
+}
+
+// The 4 rotated corners converted to screen (CSS px) space: [bl, br, tr, tl]
+function rectScreenCorners(a) {
+  return rotatedCorners(a).map(p => currentViewport.convertToViewportPoint(p.x, p.y));
+}
+
+// Radius/gap are computed in PDF POINTS (document space) so they scale with
+// zoom exactly like the highlight rectangle — this keeps the preview a true
+// match for the exported PDF at any zoom level. fontSizePt is used directly
+// as the measurement font size; the ratio of glyph-width-to-font-size is
+// scale-independent, so this is a safe way to measure the "native" shape.
+function overlayBadgeRadiusPt(number, fontSizePt) {
+  overlayCtx.save();
+  overlayCtx.font = `bold ${fontSizePt}px ui-monospace, monospace`;
+  const w = overlayCtx.measureText(String(number)).width;
+  overlayCtx.restore();
+  return Math.max(fontSizePt * 0.62, w / 2) + 2.5;
+}
+
+const BADGE_GAP = 3; // clear space between the badge's edge and the highlight, in points
+
+// Default badge offset (in points): just outside the highlight's left edge,
+// sized to the actual number so it never overlaps regardless of digit count.
+function defaultBadgeOffsetPt(number, fontSizePt) {
+  const radius = overlayBadgeRadiusPt(number, fontSizePt);
+  return { x: -(radius + BADGE_GAP), y: 0 };
+}
+
+function badgeCenterPt(a) {
+  // The badge's position is stored as a LOCAL offset (relative to the rect's
+  // left-mid edge, in the rectangle's own unrotated frame) so it rotates
+  // together with the rectangle instead of staying fixed in absolute space.
+  const fontSizePt = a.fontSize ?? DEFAULT_FONT_SIZE;
+  const def = defaultBadgeOffsetPt(a.number, fontSizePt);
+  const offX = a.numOffsetX ?? def.x;
+  const offY = a.numOffsetY ?? def.y;
+  return rotateOffsetToPdf(a, -a.w / 2 + offX, offY);
+}
+
+function nearestCorner(a) {
+  const corners = rotatedCorners(a);
+  const badge = badgeCenterPt(a);
+  let best = corners[0], bestDist = Infinity;
+  for (const c of corners) {
+    const d = (c.x - badge.x) ** 2 + (c.y - badge.y) ** 2;
+    if (d < bestDist) { bestDist = d; best = c; }
+  }
+  return best;
+}
+
+function badgeScreenCenter(a) {
+  const centerPdf = badgeCenterPt(a);
+  const p = currentViewport.convertToViewportPoint(centerPdf.x, centerPdf.y);
+  return { bx: p[0], by: p[1] };
+}
+
+function drawAnnotationOnOverlay(a) {
+  const corners = rectScreenCorners(a); // [bl, br, tr, tl]
+  const color = COLORS[a.color] || COLORS[DEFAULT_COLOR];
+  const bw = a.borderWidth ?? DEFAULT_BORDER_WIDTH;
+  const op = a.opacity ?? DEFAULT_OPACITY;
+  const fontSizePt = a.fontSize ?? DEFAULT_FONT_SIZE;
+  const vScale = currentViewport.scale;
+  const radiusPt = overlayBadgeRadiusPt(a.number, fontSizePt);
+  const radiusCss = radiusPt * vScale;
+  const fontCss = fontSizePt * vScale;
+  overlayCtx.save();
+  overlayCtx.beginPath();
+  overlayCtx.moveTo(corners[0][0], corners[0][1]);
+  for (let i = 1; i < 4; i++) overlayCtx.lineTo(corners[i][0], corners[i][1]);
+  overlayCtx.closePath();
+  overlayCtx.globalAlpha = op;
+  overlayCtx.fillStyle = color.hex;
+  overlayCtx.fill();
+  overlayCtx.globalAlpha = 1;
+  if (bw > 0) {
+    overlayCtx.strokeStyle = color.hex;
+    overlayCtx.lineWidth = bw;
+    overlayCtx.stroke();
+  }
+
+  const { bx, by } = badgeScreenCenter(a);
+
+  if (a.showLeader) {
+    const corner = nearestCorner(a);
+    const cornerScreen = currentViewport.convertToViewportPoint(corner.x, corner.y);
+    overlayCtx.save();
+    overlayCtx.strokeStyle = color.hex;
+    overlayCtx.lineWidth = 1.25;
+    overlayCtx.setLineDash([4, 3]);
+    overlayCtx.beginPath();
+    overlayCtx.moveTo(cornerScreen[0], cornerScreen[1]);
+    overlayCtx.lineTo(bx, by);
+    overlayCtx.stroke();
+    overlayCtx.restore();
+  }
+
+  // number badge — draggable, positioned at anchor + user offset
+  overlayCtx.beginPath();
+  overlayCtx.arc(bx, by, radiusCss, 0, Math.PI * 2);
+  overlayCtx.fillStyle = color.hex;
+  overlayCtx.fill();
+  overlayCtx.lineWidth = 1.5;
+  overlayCtx.strokeStyle = "white";
+  overlayCtx.stroke();
+
+  overlayCtx.fillStyle = color.textHex || "white";
+  overlayCtx.font = `bold ${fontCss}px ui-monospace, monospace`;
+  overlayCtx.textAlign = "center";
+  overlayCtx.textBaseline = "middle";
+  overlayCtx.fillText(String(a.number), bx, by + 1);
+  overlayCtx.restore();
+}
+
+function drawPreviewRect(start, current) {
+  const sx = Math.min(start.x, current.x);
+  const sy = Math.min(start.y, current.y);
+  const sw = Math.abs(current.x - start.x);
+  const sh = Math.abs(current.y - start.y);
+  const color = COLORS[DEFAULT_COLOR];
+  overlayCtx.save();
+  overlayCtx.setLineDash([5, 4]);
+  overlayCtx.strokeStyle = color.hex;
+  overlayCtx.lineWidth = 1.5;
+  overlayCtx.strokeRect(sx, sy, sw, sh);
+  overlayCtx.restore();
+}
+
+// ---------- Mouse interaction (draw + pan + drag badge) ----------
+let panMode = false;
+let spaceHeld = false;
+let isPanning = false;
+let panStart = null; // {clientX, clientY, scrollLeft, scrollTop} — fallback when pointer lock isn't available
+let pointerLockActive = false;
+let draggingBadge = null; // annotation currently being dragged by its number badge
+let dragBadgeStartCanvasPt = null;
+let dragBadgeStartOffset = null;
+let selectedAnnId = null;   // id of the annotation currently selected for resize/move
+let resizingHandle = null;  // {ann, handle, startX, startY, startW, startH, startCanvasPt, fixedGlobal}
+let movingRect = null;      // {ann, startCanvasPt, startX, startY}
+let rotatingHandle = null;  // {ann, startMouseAngle, startRotation}
+const HANDLE_SIZE = 8;      // visual square size, px
+const HANDLE_HIT_R = 8;     // hit-test radius, px
+
+document.addEventListener("pointerlockchange", () => {
+  pointerLockActive = (document.pointerLockElement === overlayCanvas);
+});
+document.addEventListener("pointerlockerror", () => {
+  pointerLockActive = false; // silently fall back to normal cursor-tracked panning
+});
+
+function getCanvasPoint(evt) {
+  const rect = overlayCanvas.getBoundingClientRect();
+  return { x: evt.clientX - rect.left, y: evt.clientY - rect.top };
+}
+
+function isPanRequested(evt) {
+  return panMode || spaceHeld || evt.button === 1 || evt.button === 2;
+}
+
+function setOverlayCursor() {
+  if (isPanning) { overlayCanvas.style.cursor = "grabbing"; return; }
+  if (draggingBadge) { overlayCanvas.style.cursor = "move"; return; }
+  if (resizingHandle) { overlayCanvas.style.cursor = handleCursor(resizingHandle.handle); return; }
+  if (movingRect) { overlayCanvas.style.cursor = "move"; return; }
+  if (rotatingHandle) { overlayCanvas.style.cursor = "grabbing"; return; }
+  overlayCanvas.style.cursor = (panMode || spaceHeld) ? "grab" : "crosshair";
+}
+
+function handleCursor(handle) {
+  const map = {
+    n: "ns-resize", s: "ns-resize",
+    e: "ew-resize", w: "ew-resize",
+    nw: "nwse-resize", se: "nwse-resize",
+    ne: "nesw-resize", sw: "nesw-resize",
+  };
+  return map[handle] || "crosshair";
+}
+
+function findBadgeAt(canvasPt) {
+  const pageAnns = annotations.filter(a => a.page === currentPage);
+  // check topmost (last drawn) first
+  for (let i = pageAnns.length - 1; i >= 0; i--) {
+    const a = pageAnns[i];
+    const { bx, by } = badgeScreenCenter(a);
+    const radiusPt = overlayBadgeRadiusPt(a.number, a.fontSize ?? DEFAULT_FONT_SIZE);
+    const radius = radiusPt * currentViewport.scale;
+    const dx = canvasPt.x - bx, dy = canvasPt.y - by;
+    if (Math.sqrt(dx * dx + dy * dy) <= radius + 4) return a;
+  }
+  return null;
+}
+
+function rectHandlePositions(a) {
+  const [bl, br, tr, tl] = rectScreenCorners(a);
+  const mid = (p1, p2) => ({ x: (p1[0] + p2[0]) / 2, y: (p1[1] + p2[1]) / 2 });
+  return {
+    sw: { x: bl[0], y: bl[1] }, s: mid(bl, br), se: { x: br[0], y: br[1] },
+    w: mid(bl, tl),                              e: mid(br, tr),
+    nw: { x: tl[0], y: tl[1] }, n: mid(tl, tr), ne: { x: tr[0], y: tr[1] },
+  };
+}
+
+// Position of the rotate handle: a short stem out from the top-mid edge, in
+// screen space so its distance from the shape stays constant regardless of zoom.
+function rotateHandlePosition(a) {
+  const [bl, br, tr, tl] = rectScreenCorners(a);
+  const topMid = { x: (tr[0] + tl[0]) / 2, y: (tr[1] + tl[1]) / 2 };
+  const centerPdf = { x: a.x + a.w / 2, y: a.y + a.h / 2 };
+  const centerScreen = currentViewport.convertToViewportPoint(centerPdf.x, centerPdf.y);
+  const dx = topMid.x - centerScreen[0], dy = topMid.y - centerScreen[1];
+  const len = Math.sqrt(dx * dx + dy * dy) || 1;
+  const DIST = 22;
+  return {
+    x: topMid.x + (dx / len) * DIST,
+    y: topMid.y + (dy / len) * DIST,
+    stemFrom: topMid,
+  };
+}
+
+function findRotateHandleAt(canvasPt, a) {
+  const rot = rotateHandlePosition(a);
+  const dx = canvasPt.x - rot.x, dy = canvasPt.y - rot.y;
+  return Math.sqrt(dx * dx + dy * dy) <= HANDLE_HIT_R + 2;
+}
+
+function findHandleAt(canvasPt, a) {
+  const handles = rectHandlePositions(a);
+  for (const key in handles) {
+    const p = handles[key];
+    const dx = canvasPt.x - p.x, dy = canvasPt.y - p.y;
+    if (Math.sqrt(dx * dx + dy * dy) <= HANDLE_HIT_R) return key;
+  }
+  return null;
+}
+
+function pointInRect(canvasPt, a) {
+  const pdfPt = currentViewport.convertToPdfPoint(canvasPt.x, canvasPt.y);
+  const local = pdfPointToLocalFrame(a, { x: pdfPt[0], y: pdfPt[1] });
+  return local.x >= a.x && local.x <= a.x + a.w && local.y >= a.y && local.y <= a.y + a.h;
+}
+
+// Selecting a rectangle requires clicking near its border, not just anywhere
+// inside it — this way clicking deep inside an existing highlight still lets
+// you draw a new, possibly-overlapping one, which the tool depends on.
+function findRectBorderAt(canvasPt, tolerancePx) {
+  tolerancePx = tolerancePx || 7;
+  const pageAnns = annotations.filter(a => a.page === currentPage);
+  const pdfPt = currentViewport.convertToPdfPoint(canvasPt.x, canvasPt.y);
+  for (let i = pageAnns.length - 1; i >= 0; i--) {
+    const a = pageAnns[i];
+    const tolerance = tolerancePx / currentViewport.scale;
+    const local = pdfPointToLocalFrame(a, { x: pdfPt[0], y: pdfPt[1] });
+    const sx = a.x, sy = a.y, sw = a.w, sh = a.h;
+    const withinX = local.x >= sx - tolerance && local.x <= sx + sw + tolerance;
+    const withinY = local.y >= sy - tolerance && local.y <= sy + sh + tolerance;
+    const nearLeft = withinY && Math.abs(local.x - sx) <= tolerance;
+    const nearRight = withinY && Math.abs(local.x - (sx + sw)) <= tolerance;
+    const nearBottom = withinX && Math.abs(local.y - sy) <= tolerance;
+    const nearTop = withinX && Math.abs(local.y - (sy + sh)) <= tolerance;
+    if (nearLeft || nearRight || nearTop || nearBottom) return a;
+  }
+  return null;
+}
+
+el("btnPanToggle").addEventListener("click", () => {
+  panMode = !panMode;
+  el("btnPanToggle").classList.toggle("active", panMode);
+  setOverlayCursor();
+});
+
+// Hold Space for a temporary pan, like design tools. Ignored while typing.
+window.addEventListener("keydown", (evt) => {
+  if (evt.code === "Space" && !spaceHeld) {
+    const tag = (evt.target.tagName || "").toLowerCase();
+    if (tag === "input" || tag === "textarea") return;
+    spaceHeld = true;
+    setOverlayCursor();
+    evt.preventDefault();
+  }
+});
+window.addEventListener("keyup", (evt) => {
+  if (evt.code === "Space") {
+    spaceHeld = false;
+    setOverlayCursor();
+  }
+});
+
+overlayCanvas.addEventListener("mousemove", (evt) => {
+  if (drawing || draggingBadge || resizingHandle || movingRect || rotatingHandle || isPanning || panMode || spaceHeld) return;
+  const pt = getCanvasPoint(evt);
+  if (findBadgeAt(pt)) { overlayCanvas.style.cursor = "move"; return; }
+  if (selectedAnnId != null) {
+    const selAnn = annotations.find(a => a.id === selectedAnnId && a.page === currentPage);
+    if (selAnn) {
+      if (findRotateHandleAt(pt, selAnn)) { overlayCanvas.style.cursor = "grab"; return; }
+      const handle = findHandleAt(pt, selAnn);
+      if (handle) { overlayCanvas.style.cursor = handleCursor(handle); return; }
+      if (pointInRect(pt, selAnn)) { overlayCanvas.style.cursor = "move"; return; }
+    }
+  }
+  overlayCanvas.style.cursor = "crosshair";
+});
+
+overlayCanvas.addEventListener("contextmenu", (evt) => evt.preventDefault());
+
+overlayCanvas.addEventListener("dblclick", (evt) => {
+  const pt = getCanvasPoint(evt);
+  const hit = findBadgeAt(pt);
+  if (hit) {
+    evt.preventDefault();
+    openBadgeNumberEditor(hit);
+  }
+});
+
+function openBadgeNumberEditor(a) {
+  const existing = document.querySelector(".badgeEditInput");
+  if (existing) existing.remove();
+
+  const { bx, by } = badgeScreenCenter(a);
+  const radiusPt = overlayBadgeRadiusPt(a.number, a.fontSize ?? DEFAULT_FONT_SIZE);
+  const radiusCss = radiusPt * currentViewport.scale;
+  const w = Math.max(32, radiusCss * 2 + 12);
+
+  const input = document.createElement("input");
+  input.type = "text";
+  input.inputMode = "numeric";
+  input.className = "badgeEditInput";
+  input.value = String(a.number);
+  input.style.left = (bx - w / 2) + "px";
+  input.style.top = (by - 13) + "px";
+  input.style.width = w + "px";
+
+  el("canvasStack").appendChild(input);
+  input.focus();
+  input.select();
+
+  let done = false;
+  function commit() {
+    if (done) return;
+    done = true;
+    const raw = input.value.trim();
+    const v = parseInt(raw, 10);
+    if (raw !== "" && !isNaN(v)) {
+      a.number = v;
+      lastNumber = v;
+      updateRepeatButtonLabel();
+      updateSidebar();
+      redrawOverlay();
+    }
+    input.remove();
+  }
+  function cancel() {
+    if (done) return;
+    done = true;
+    input.remove();
+  }
+  input.addEventListener("click", (ev) => ev.stopPropagation());
+  input.addEventListener("mousedown", (ev) => ev.stopPropagation());
+  input.addEventListener("blur", commit);
+  input.addEventListener("keydown", (ev) => {
+    if (ev.key === "Enter") { ev.preventDefault(); commit(); }
+    else if (ev.key === "Escape") { ev.preventDefault(); cancel(); }
+  });
+}
+
+overlayCanvas.addEventListener("mousedown", (evt) => {
+  if (isPanRequested(evt)) {
+    evt.preventDefault();
+    isPanning = true;
+    panStart = {
+      clientX: evt.clientX, clientY: evt.clientY,
+      scrollLeft: canvasZone.scrollLeft, scrollTop: canvasZone.scrollTop,
+    };
+    pointerLockActive = false;
+    if (overlayCanvas.requestPointerLock) {
+      try {
+        const req = overlayCanvas.requestPointerLock();
+        if (req && typeof req.then === "function") {
+          req.catch(() => { pointerLockActive = false; });
+        }
+      } catch (e) { /* not available (e.g. restricted iframe) — falls back to normal drag */ }
+    }
+    setOverlayCursor();
+    return;
+  }
+  const pt = getCanvasPoint(evt);
+  const hit = findBadgeAt(pt);
+  if (hit) {
+    draggingBadge = hit;
+    dragBadgeStartCanvasPt = pt;
+    const d = defaultBadgeOffsetPt(hit.number, hit.fontSize ?? DEFAULT_FONT_SIZE);
+    dragBadgeStartOffset = { x: hit.numOffsetX ?? d.x, y: hit.numOffsetY ?? d.y };
+    setOverlayCursor();
+    return;
+  }
+
+  // Resize / rotate / move the currently selected rectangle
+  if (selectedAnnId != null) {
+    const selAnn = annotations.find(a => a.id === selectedAnnId && a.page === currentPage);
+    if (selAnn) {
+      if (findRotateHandleAt(pt, selAnn)) {
+        const centerPdf = { x: selAnn.x + selAnn.w / 2, y: selAnn.y + selAnn.h / 2 };
+        const centerScreen = currentViewport.convertToViewportPoint(centerPdf.x, centerPdf.y);
+        const startMouseAngle = Math.atan2(pt.y - centerScreen[1], pt.x - centerScreen[0]);
+        rotatingHandle = { ann: selAnn, startMouseAngle, startRotation: selAnn.rotation || 0 };
+        setOverlayCursor();
+        return;
+      }
+      const handle = findHandleAt(pt, selAnn);
+      if (handle) {
+        const ao = anchorOffsetForHandle(handle, selAnn.w, selAnn.h);
+        const rotatedAo = rotateVec(rotationRad(selAnn), ao.x, ao.y);
+        const cx = selAnn.x + selAnn.w / 2, cy = selAnn.y + selAnn.h / 2;
+        resizingHandle = {
+          ann: selAnn, handle,
+          startX: selAnn.x, startY: selAnn.y, startW: selAnn.w, startH: selAnn.h,
+          startCanvasPt: pt,
+          fixedGlobal: { x: cx + rotatedAo.x, y: cy + rotatedAo.y },
+        };
+        setOverlayCursor();
+        return;
+      }
+      if (pointInRect(pt, selAnn)) {
+        movingRect = { ann: selAnn, startCanvasPt: pt, startX: selAnn.x, startY: selAnn.y };
+        setOverlayCursor();
+        return;
+      }
+    }
+  }
+
+  // Clicking near an existing rectangle's edge selects it (shows handles),
+  // without moving it or starting a new draw on this same click.
+  const borderHit = findRectBorderAt(pt);
+  if (borderHit) {
+    selectedAnnId = borderHit.id;
+    redrawOverlay();
+    return;
+  }
+
+  if (selectedAnnId != null) {
+    selectedAnnId = null;
+    redrawOverlay();
+  }
+  drawing = true;
+  dragStart = pt;
+  dragCurrent = dragStart;
+});
+window.addEventListener("mousemove", (evt) => {
+  if (isPanning && panStart) {
+    if (pointerLockActive) {
+      canvasZone.scrollLeft -= evt.movementX;
+      canvasZone.scrollTop -= evt.movementY;
+    } else {
+      canvasZone.scrollLeft = panStart.scrollLeft - (evt.clientX - panStart.clientX);
+      canvasZone.scrollTop = panStart.scrollTop - (evt.clientY - panStart.clientY);
+    }
+    return;
+  }
+  if (draggingBadge) {
+    const pt = getCanvasPoint(evt);
+    const startPdf = currentViewport.convertToPdfPoint(dragBadgeStartCanvasPt.x, dragBadgeStartCanvasPt.y);
+    const curPdf = currentViewport.convertToPdfPoint(pt.x, pt.y);
+    const localDelta = globalDeltaToLocal(draggingBadge, curPdf[0] - startPdf[0], curPdf[1] - startPdf[1]);
+    draggingBadge.numOffsetX = dragBadgeStartOffset.x + localDelta.x;
+    draggingBadge.numOffsetY = dragBadgeStartOffset.y + localDelta.y;
+    redrawOverlay();
+    return;
+  }
+  if (resizingHandle) {
+    const pt = getCanvasPoint(evt);
+    const startPdf = currentViewport.convertToPdfPoint(resizingHandle.startCanvasPt.x, resizingHandle.startCanvasPt.y);
+    const curPdf = currentViewport.convertToPdfPoint(pt.x, pt.y);
+    const { ann, handle, startW, startH, fixedGlobal } = resizingHandle;
+    const localDelta = globalDeltaToLocal(ann, curPdf[0] - startPdf[0], curPdf[1] - startPdf[1]);
+
+    let newW = startW, newH = startH;
+    if (handle.indexOf("e") !== -1) newW = startW + localDelta.x;
+    if (handle.indexOf("w") !== -1) newW = startW - localDelta.x;
+    if (handle.indexOf("n") !== -1) newH = startH + localDelta.y;
+    if (handle.indexOf("s") !== -1) newH = startH - localDelta.y;
+    const MIN_SIZE = 3;
+    newW = Math.max(newW, MIN_SIZE);
+    newH = Math.max(newH, MIN_SIZE);
+
+    // Recompute the new center so the point opposite the dragged handle
+    // (the anchor) stays exactly where it was, even though the rect is rotated.
+    const ao = anchorOffsetForHandle(handle, newW, newH);
+    const rotatedAo = rotateVec(rotationRad(ann), ao.x, ao.y);
+    const newCenter = { x: fixedGlobal.x - rotatedAo.x, y: fixedGlobal.y - rotatedAo.y };
+
+    ann.w = newW;
+    ann.h = newH;
+    ann.x = newCenter.x - newW / 2;
+    ann.y = newCenter.y - newH / 2;
+    redrawOverlay();
+    return;
+  }
+  if (movingRect) {
+    const pt = getCanvasPoint(evt);
+    const startPdf = currentViewport.convertToPdfPoint(movingRect.startCanvasPt.x, movingRect.startCanvasPt.y);
+    const curPdf = currentViewport.convertToPdfPoint(pt.x, pt.y);
+    movingRect.ann.x = movingRect.startX + (curPdf[0] - startPdf[0]);
+    movingRect.ann.y = movingRect.startY + (curPdf[1] - startPdf[1]);
+    redrawOverlay();
+    return;
+  }
+  if (rotatingHandle) {
+    const pt = getCanvasPoint(evt);
+    const { ann, startMouseAngle, startRotation } = rotatingHandle;
+    const centerPdf = { x: ann.x + ann.w / 2, y: ann.y + ann.h / 2 };
+    const centerScreen = currentViewport.convertToViewportPoint(centerPdf.x, centerPdf.y);
+    const curMouseAngle = Math.atan2(pt.y - centerScreen[1], pt.x - centerScreen[0]);
+    // Screen space is y-down (angle increases clockwise); our rotation is the
+    // standard y-up counter-clockwise convention, so the delta is negated.
+    const deltaDeg = -((curMouseAngle - startMouseAngle) * 180) / Math.PI;
+    ann.rotation = startRotation + deltaDeg;
+    redrawOverlay();
+    return;
+  }
+  if (!drawing) return;
+  dragCurrent = getCanvasPoint(evt);
+  redrawOverlay();
+});
+window.addEventListener("mouseup", (evt) => {
+  if (isPanning) {
+    isPanning = false;
+    panStart = null;
+    if (pointerLockActive && document.exitPointerLock) {
+      document.exitPointerLock();
+    }
+    pointerLockActive = false;
+    setOverlayCursor();
+    return;
+  }
+  if (draggingBadge) {
+    draggingBadge = null;
+    dragBadgeStartCanvasPt = null;
+    dragBadgeStartOffset = null;
+    setOverlayCursor();
+    scheduleAutoSave();
+    return;
+  }
+  if (resizingHandle) {
+    resizingHandle = null;
+    setOverlayCursor();
+    redrawOverlay();
+    scheduleAutoSave();
+    return;
+  }
+  if (movingRect) {
+    movingRect = null;
+    setOverlayCursor();
+    redrawOverlay();
+    scheduleAutoSave();
+    return;
+  }
+  if (rotatingHandle) {
+    rotatingHandle = null;
+    setOverlayCursor();
+    redrawOverlay();
+    scheduleAutoSave();
+    return;
+  }
+  if (!drawing) return;
+  drawing = false;
+  const end = getCanvasPoint(evt);
+  finalizeRect(dragStart, end);
+  dragStart = null;
+  dragCurrent = null;
+  redrawOverlay();
+});
+
+function updateRepeatButtonLabel() {
+  const btn = el("btnRepeatToggle");
+  if (!btn) return;
+  btn.textContent = repeatMode && lastNumber !== null
+    ? `同じ番号で連続中（#${lastNumber}）`
+    : "同じ番号で連続";
+}
+
+function finalizeRect(start, end) {
+  const sw = Math.abs(end.x - start.x);
+  const sh = Math.abs(end.y - start.y);
+  if (sw < 6 || sh < 6) return; // too small, ignore accidental click
+
+  const c1 = currentViewport.convertToPdfPoint(start.x, start.y);
+  const c2 = currentViewport.convertToPdfPoint(end.x, end.y);
+  const x = Math.min(c1[0], c2[0]);
+  const y = Math.min(c1[1], c2[1]);
+  const w = Math.abs(c2[0] - c1[0]);
+  const h = Math.abs(c2[1] - c1[1]);
+
+  const assignedNumber = (repeatMode && lastNumber !== null) ? lastNumber : nextNumber();
+  lastNumber = assignedNumber;
+
+  const ann = {
+    id: nextId++,
+    page: currentPage,
+    x, y, w, h,
+    number: assignedNumber,
+    note: "",
+    color: lastColor,
+    borderWidth: globalBorderWidth,
+    opacity: globalOpacity,
+    numOffsetX: null, // unset = use each renderer's own accurate default (screen px for preview, points for export)
+    numOffsetY: null,
+    fontSize: globalFontSize,
+    showLeader: false,
+    rotation: 0,
+  };
+  annotations.push(ann);
+  updateRepeatButtonLabel();
+  lastAddedAnnId = ann.id;
+  updateSidebar();
+}
+
+function nextNumber() {
+  const used = annotations.map(a => a.number);
+  let n = 1;
+  while (used.includes(n)) n++;
+  return n;
+}
+
+// ---------- Sidebar ----------
+let lastAddedAnnId = null;
+function updateSidebar() {
+  const list = el("annotationList");
+  el("markerCountLabel").textContent = `マーカー ${annotations.length}件`;
+  scheduleAutoSave();
+
+  if (annotations.length === 0) {
+    list.innerHTML = "";
+    let empty = document.getElementById("sidebarEmpty");
+    if (!empty) {
+      empty = document.createElement("div");
+      empty.id = "sidebarEmpty";
+      empty.textContent = "まだマーカーがありません。左側の図面上をドラッグして矩形を作成してください。カードをクリックすると該当ページへジャンプします。";
+    }
+    list.appendChild(empty);
+    return;
+  }
+
+  const dupSet = findDuplicateNumbers();
+  const sorted = [...annotations].sort((a, b) => a.number - b.number);
+  list.innerHTML = "";
+  sorted.forEach(a => list.appendChild(buildAnnCard(a, dupSet.has(a.number))));
+
+  if (lastAddedAnnId != null) {
+    const targetId = lastAddedAnnId;
+    lastAddedAnnId = null;
+    requestAnimationFrame(() => {
+      const cardEl = list.querySelector(`[data-ann-id="${targetId}"]`);
+      if (cardEl) cardEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
+  }
+}
+
+function findDuplicateNumbers() {
+  const seen = new Map();
+  annotations.forEach(a => seen.set(a.number, (seen.get(a.number) || 0) + 1));
+  const dup = new Set();
+  seen.forEach((count, num) => { if (count > 1) dup.add(num); });
+  return dup;
+}
+
+function renumberAll() {
+  // Reading order: page ascending, then top-to-bottom, then left-to-right.
+  const ordered = [...annotations].sort((a, b) => {
+    if (a.page !== b.page) return a.page - b.page;
+    if (Math.abs(a.y - b.y) > 0.01) return b.y - a.y; // pdf y grows upward
+    return a.x - b.x;
+  });
+  ordered.forEach((a, i) => { a.number = i + 1; });
+  lastNumber = null;
+  updateRepeatButtonLabel();
+  updateSidebar();
+  redrawOverlay();
+}
+
+function buildAnnCard(a, isDup) {
+  const card = document.createElement("div");
+  card.className = "annCard" + (isDup ? " dupWarning" : "");
+  card.dataset.annId = String(a.id);
+  card.style.borderLeftColor = COLORS[a.color].hex;
+
+  const row1 = document.createElement("div");
+  row1.className = "row1";
+
+  const badge = document.createElement("input");
+  badge.type = "text";
+  badge.inputMode = "numeric";
+  badge.className = "numBadge";
+  badge.style.background = COLORS[a.color].hex;
+  badge.value = a.number;
+  badge.title = "番号を編集できます";
+  badge.addEventListener("click", (ev) => ev.stopPropagation());
+  badge.addEventListener("focus", (ev) => ev.target.select());
+  function commitBadge(ev) {
+    const raw = ev.target.value.trim();
+    const v = parseInt(raw, 10);
+    if (raw === "" || isNaN(v)) {
+      ev.target.value = a.number; // revert
+      return;
+    }
+    a.number = v;
+    lastNumber = v;
+    updateRepeatButtonLabel();
+    updateSidebar();
+    redrawOverlay();
+  }
+  badge.addEventListener("blur", commitBadge);
+  badge.addEventListener("keydown", (ev) => {
+    if (ev.key === "Enter") { ev.target.blur(); }
+    if (ev.key === "Escape") { ev.target.value = a.number; ev.target.blur(); }
+  });
+
+  const pageTag = document.createElement("span");
+  pageTag.className = "pageTag";
+  pageTag.textContent = `p.${a.page}`;
+
+  const delBtn = document.createElement("button");
+  delBtn.className = "delBtn";
+  delBtn.textContent = "削除";
+  delBtn.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    annotations = annotations.filter(x => x.id !== a.id);
+    if (selectedAnnId === a.id) selectedAnnId = null;
+    updateSidebar();
+    redrawOverlay();
+  });
+
+  row1.appendChild(badge);
+  row1.appendChild(pageTag);
+  row1.appendChild(delBtn);
+
+  const colorRow = document.createElement("div");
+  colorRow.className = "colorRow";
+  const swatches = document.createElement("div");
+  swatches.className = "swatches";
+  Object.keys(COLORS).forEach(key => {
+    const sw = document.createElement("div");
+    sw.className = "swatch" + (a.color === key ? " active" : "");
+    sw.style.background = COLORS[key].hex;
+    sw.title = key;
+    sw.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      a.color = key;
+      lastColor = key;
+      updateSidebar();
+      redrawOverlay();
+    });
+    swatches.appendChild(sw);
+  });
+  colorRow.appendChild(swatches);
+
+  const leaderToggle = document.createElement("label");
+  leaderToggle.className = "leaderToggle";
+  leaderToggle.title = "ハイライトの角から番号へ線を引きます（近い角を自動で選びます）";
+  const leaderCheckbox = document.createElement("input");
+  leaderCheckbox.type = "checkbox";
+  leaderCheckbox.checked = !!a.showLeader;
+  leaderCheckbox.addEventListener("click", (ev) => ev.stopPropagation());
+  leaderCheckbox.addEventListener("change", (ev) => {
+    a.showLeader = ev.target.checked;
+    redrawOverlay();
+  });
+  leaderToggle.addEventListener("click", (ev) => ev.stopPropagation());
+  leaderToggle.appendChild(leaderCheckbox);
+  leaderToggle.appendChild(document.createTextNode("線描写"));
+  colorRow.appendChild(leaderToggle);
+
+  const annDefault = defaultBadgeOffsetPt(a.number, a.fontSize ?? DEFAULT_FONT_SIZE);
+  const curOffX = a.numOffsetX ?? annDefault.x;
+  const curOffY = a.numOffsetY ?? annDefault.y;
+  let row2 = null;
+  if (Math.abs(curOffX - annDefault.x) > 0.5 || Math.abs(curOffY - annDefault.y) > 0.5) {
+    row2 = document.createElement("div");
+    row2.className = "row2";
+    const resetBtn = document.createElement("button");
+    resetBtn.className = "delBtn";
+    resetBtn.textContent = "番号位置をリセット";
+    resetBtn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      const d = defaultBadgeOffsetPt(a.number, a.fontSize ?? DEFAULT_FONT_SIZE);
+      a.numOffsetX = d.x;
+      a.numOffsetY = d.y;
+      updateSidebar();
+      redrawOverlay();
+    });
+    row2.appendChild(resetBtn);
+  }
+
+  card.appendChild(row1);
+  if (isDup) {
+    const notice = document.createElement("p");
+    notice.className = "dupNotice";
+    notice.textContent = `番号${a.number}が重複`;
+    card.appendChild(notice);
+  }
+  card.appendChild(colorRow);
+  if (row2) card.appendChild(row2);
+
+  card.addEventListener("click", async () => {
+    if (a.page !== currentPage) {
+      currentPage = a.page;
+      await renderPage(currentPage);
+    }
+    selectedAnnId = a.id;
+    redrawOverlay();
+  });
+
+  return card;
+}
+
+el("btnRenumber").addEventListener("click", () => {
+  if (annotations.length === 0) return;
+  renumberAll();
+});
+
+el("btnClearAll").addEventListener("click", () => {
+  if (annotations.length === 0) return;
+  if (confirm("すべてのマーカーを削除しますか？")) {
+    annotations = [];
+    lastNumber = null;
+    selectedAnnId = null;
+    updateRepeatButtonLabel();
+    updateSidebar();
+    redrawOverlay();
+  }
+});
+
+// ---------- Export (vector overlay onto original PDF — no rasterization) ----------
+el("btnExport").addEventListener("click", exportPdf);
+
+async function exportPdf() {
+  if (!pdfBytesOriginal) return;
+  const btn = el("btnExport");
+  const originalLabel = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "書き出し中...";
+
+  try {
+    const { PDFDocument, rgb, StandardFonts, degrees } = PDFLib;
+    const pdfDoc = await PDFDocument.load(pdfBytesOriginal.slice(0));
+    const pages = pdfDoc.getPages();
+    const font = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+    annotations.forEach(a => {
+      const page = pages[a.page - 1];
+      if (!page) return;
+      const c = COLORS[a.color] || COLORS[DEFAULT_COLOR];
+      const color = rgb(c.rgb[0], c.rgb[1], c.rgb[2]);
+      const bw = a.borderWidth ?? DEFAULT_BORDER_WIDTH;
+      const op = a.opacity ?? DEFAULT_OPACITY;
+      const theta = a.rotation || 0;
+
+      const rectOpts = {
+        x: a.x, y: a.y, width: a.w, height: a.h,
+        color: color,
+        opacity: op,
+      };
+      if (theta) {
+        // pdf-lib rotates a rectangle around its own (x,y) anchor. To match
+        // the preview's center-pivot rotation, move the anchor to where the
+        // original bottom-left corner ends up after rotating around the
+        // center (rotatedCorners()[0]) — rotating the w×h box from THAT
+        // point by the same angle produces an identical result.
+        const corner0 = rotatedCorners(a)[0];
+        rectOpts.x = corner0.x;
+        rectOpts.y = corner0.y;
+        rectOpts.rotate = degrees(theta);
+      }
+      if (bw > 0) {
+        rectOpts.borderColor = color;
+        rectOpts.borderWidth = bw;
+        rectOpts.borderOpacity = 0.95;
+      }
+      page.drawRectangle(rectOpts);
+
+      const fontSize = a.fontSize ?? DEFAULT_FONT_SIZE;
+      const label = String(a.number);
+      const textWidth = font.widthOfTextAtSize(label, fontSize);
+      const radius = Math.max(fontSize * 0.62, textWidth / 2) + 2.5;
+      const badgePt = badgeCenterPt(a); // same rotation-aware math as the preview
+      const cx = badgePt.x, cy = badgePt.y;
+      const tRgb = c.textRgb || [1, 1, 1];
+      const textColor = rgb(tRgb[0], tRgb[1], tRgb[2]);
+
+      if (a.showLeader) {
+        const corner = nearestCorner(a); // same rotation-aware nearest-corner logic
+        page.drawLine({
+          start: { x: corner.x, y: corner.y },
+          end: { x: cx, y: cy },
+          thickness: 1,
+          color: color,
+          opacity: 0.85,
+        });
+      }
+
+      page.drawEllipse({
+        x: cx, y: cy, xScale: radius, yScale: radius,
+        color: color,
+        borderColor: rgb(1, 1, 1),
+        borderWidth: 1,
+        opacity: 1,
+      });
+      page.drawText(label, {
+        x: cx - textWidth / 2,
+        y: cy - fontSize * 0.35,
+        size: fontSize,
+        font,
+        color: textColor,
+      });
+    });
+
+    const outBytes = await pdfDoc.save();
+    const blob = new Blob([outBytes], { type: "application/pdf" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "annotated_drawing.pdf";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  } catch (err) {
+    console.error(err);
+    alert("書き出し中にエラーが発生しました: " + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalLabel;
+  }
+}
+</script>
+</body>
+</html>
