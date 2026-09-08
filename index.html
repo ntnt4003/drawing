@@ -125,6 +125,20 @@
     box-shadow: 3px 4px 0 var(--mint-deep);
   }
   #btnPanToggle.active:hover { background: var(--mint-deep); color: white; }
+  #btnSlideToggle.active {
+    background: var(--sky);
+    border-color: var(--sky-deep);
+    color: var(--ink);
+    box-shadow: 3px 4px 0 var(--sky-deep);
+  }
+  #btnSlideToggle.active:hover { background: var(--sky-deep); color: white; }
+  #btnAddTextToggle.active {
+    background: var(--mint);
+    border-color: var(--mint-deep);
+    color: var(--ink);
+    box-shadow: 3px 4px 0 var(--mint-deep);
+  }
+  #btnAddTextToggle.active:hover { background: var(--mint-deep); color: white; }
   input[type="file"] { display: none; }
 
   /* Main layout */
@@ -180,12 +194,27 @@
     outline: none;
     box-shadow: 2px 3px 0 rgba(74,52,39,0.3);
   }
+  .textNoteEditInput {
+    position: absolute;
+    z-index: 30;
+    font-family: "Zen Maru Gothic", -apple-system, BlinkMacSystemFont, "Hiragino Sans", sans-serif;
+    font-weight: 700;
+    line-height: 1.2;
+    border: 2px dashed var(--ink);
+    border-radius: 4px;
+    padding: 3px 5px;
+    background: rgba(255,255,255,0.95);
+    outline: none;
+    box-shadow: 2px 3px 0 rgba(74,52,39,0.3);
+    resize: none;
+    overflow: hidden;
+  }
   #baseCanvas, #overlayCanvas {
     position: absolute;
     top: 0; left: 0;
     display: block;
   }
-  #overlayCanvas { cursor: crosshair; }
+  #overlayCanvas { cursor: crosshair; touch-action: none; }
 
   #canvasZone.dragover {
     outline: 4px dashed var(--coral);
@@ -263,6 +292,7 @@
     cursor: col-resize;
     background: var(--ink);
     position: relative;
+    touch-action: none;
   }
   #sidebarResizer::after {
     content: "";
@@ -291,6 +321,7 @@
   #globalStyle { display: flex; flex-direction: column; gap: 1px; }
   #annotationList {
     flex: 1;
+    min-height: 0;
     overflow-y: auto;
     padding: 10px 12px;
   }
@@ -417,19 +448,21 @@
     flex: 0 0 auto;
     text-align: left;
   }
-  .annCard .delBtn {
+  .annCard .delBtn, .textNoteCard .delBtn {
     font-family: var(--sans);
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 700;
     color: var(--coral-deep);
     background: var(--paper);
     border: 2px solid var(--ink);
-    border-radius: 8px;
+    border-radius: 7px;
     box-shadow: 2px 2px 0 rgba(74,52,39,0.2);
-    padding: 3px 8px;
+    padding: 2px 6px;
     cursor: pointer;
+    flex-shrink: 0;
+    white-space: nowrap;
   }
-  .annCard .delBtn:hover {
+  .annCard .delBtn:hover, .textNoteCard .delBtn:hover {
     background: var(--coral);
     color: white;
     box-shadow: 2px 2px 0 var(--coral-deep);
@@ -441,6 +474,67 @@
     font-size: 12.5px;
     line-height: 1.7;
   }
+
+  #textNoteVResizer {
+    height: 7px;
+    flex-shrink: 0;
+    cursor: row-resize;
+    background: var(--ink);
+    position: relative;
+    touch-action: none;
+  }
+  #textNoteVResizer::after {
+    content: "";
+    position: absolute;
+    left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    height: 3px; width: 28px;
+    background: var(--yellow);
+    border-radius: 2px;
+  }
+  #textNoteVResizer:hover::after,
+  #textNoteVResizer.resizing::after {
+    background: var(--coral);
+  }
+  #textNoteSection {
+    border-top: 3px solid var(--paper-line);
+    padding: 10px 12px 6px;
+    flex-shrink: 0;
+    height: 190px;
+    overflow-y: auto;
+  }
+  .textNoteHeading {
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--ink);
+    margin: 0 0 6px;
+  }
+  .textNoteCard {
+    background: #FFFDF6;
+    border: 2px solid var(--ink);
+    border-left: 6px solid var(--coral);
+    border-radius: 8px 11px 9px 12px;
+    padding: 6px 8px;
+    margin-bottom: 6px;
+    box-shadow: 2px 3px 0 rgba(74,52,39,0.15);
+  }
+  .textNoteCard .row1 { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
+  .textNoteCard .pageTag { font-family: var(--mono); font-size: 10px; color: var(--ink-soft); }
+  .textNoteCard input[type="text"] {
+    flex: 1;
+    min-width: 0;
+    font-family: var(--sans);
+    font-size: 12px;
+    border: 2px solid var(--paper-line);
+    border-radius: 6px;
+    padding: 3px 6px;
+    outline: none;
+    background: var(--paper);
+  }
+  .textNoteCard input[type="text"]:focus { border-color: var(--sky); }
+  .textNoteCard .row2 { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; row-gap: 5px; gap: 8px; }
+  .textNoteCard .swatches { display: flex; gap: 5px; flex-wrap: wrap; }
 
   #sidebarFoot {
     padding: 8px 10px;
@@ -485,8 +579,12 @@
     <div class="spacer"></div>
     <button id="btnPanToggle" class="ghost" title="オンにするか、Spaceキー／右クリック／中クリックを押しながらドラッグすると画面を移動できます">✋ 移動</button>
     <button id="btnRepeatToggle" class="ghost" title="オンにすると、次に描く矩形が直前と同じ番号になります">同じ番号で連続</button>
-    <button id="btnExportProject" class="ghost" title="PDFと注釈をまとめてファイルとしてダウンロードします。ここから続きを再開できます。" style="display:none;">プロジェクトを保存</button>
-    <button id="btnImportProject" class="ghost" title="保存しておいたプロジェクトファイルを開いて続きから再開します">プロジェクトを開く</button>
+    <button id="btnSlideToggle" class="ghost" title="オンの間、既に使われている番号に変更するとその番号以降が自動でスライド（繰り下げ）します">番号をスライド</button>
+    <button id="btnAddTextToggle" class="ghost" title="オンにすると、図面上をクリックした場所に自由に文字を追加できます">🖊 文字を追加</button>
+    <button id="btnUndo" class="ghost" title="一つ前の状態に戻します（Ctrl+Z）" disabled>↺ 戻る</button>
+    <button id="btnRedo" class="ghost" title="元に戻した操作をやり直します（Ctrl+Y）" disabled>↻ 進む</button>
+    <button id="btnExportProject" class="ghost" title="PDFと注釈をまとめてファイルとしてダウンロードします。ここから続きを再開できます。" style="display:none;">仮保存</button>
+    <button id="btnImportProject" class="ghost" title="保存しておいたプロジェクトファイルを開いて続きから再開します">再開</button>
     <input type="file" id="projectFileInput" accept="application/json,.json">
     <button id="btnUpload">PDFを開く</button>
     <input type="file" id="fileInput" accept="application/pdf">
@@ -532,7 +630,7 @@
             <input type="range" id="globalOpSlider" class="bwSlider" min="0" max="100" step="5" value="30">
           </div>
           <div class="bwRow">
-            <span class="bwLabel" id="globalFsLabel">文字 6px</span>
+            <span class="bwLabel" id="globalFsLabel">数値 6px</span>
             <input type="range" id="globalFsSlider" class="bwSlider" min="6" max="24" step="1" value="6">
           </div>
         </div>
@@ -540,8 +638,12 @@
       <div id="annotationList">
         <div id="sidebarEmpty">まだマーカーがありません。左側の図面上をドラッグして矩形を作成してください。カードをクリックすると該当ページへジャンプします。</div>
       </div>
+      <div id="textNoteVResizer" style="display:none;"></div>
+      <div id="textNoteSection" style="display:none;">
+        <p class="textNoteHeading">追加した文字</p>
+        <div id="textNoteList"></div>
+      </div>
       <div id="sidebarFoot" style="display:none;">
-        <button class="ghost" id="btnRenumber">配置順で採番し直す</button>
         <button class="ghost" id="btnClearAll">すべて削除</button>
         <button class="primary" id="btnExport">この内容で
 PDFを書き出す</button>
@@ -553,6 +655,78 @@ PDFを書き出す</button>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 <script>
+// The old @pdf-lib/fontkit (used by pdf-lib's own docs) has a longstanding,
+// well-documented bug that corrupts Japanese/CJK glyphs specifically when
+// font subsetting is enabled. The upstream `fontkit` package fixed this
+// years ago, but its API changed (synchronous encode() instead of a
+// stream), so this shim bridges it back to what pdf-lib's embedder expects.
+//
+// Loaded lazily (only when actually needed, at export time) via fetch() +
+// a same-origin Blob URL + dynamic import(), rather than a direct
+// cross-origin <script type="module" src="..."> — some environments block
+// loading a script/module directly from a third-party host even when a
+// plain fetch() to that same host is allowed, so routing it through fetch
+// (which we already rely on for the font files themselves) is more robust.
+let fontkitLoadPromise = null;
+function ensureFontkitLoaded() {
+  if (fontkitLoadPromise) return fontkitLoadPromise;
+  fontkitLoadPromise = (async () => {
+    const res = await fetch("https://cdn.jsdelivr.net/npm/fontkit@2.0.4/+esm");
+    if (!res.ok) throw new Error("fontkit fetch HTTP " + res.status);
+    let code = await res.text();
+    // jsdelivr's +esm output isn't fully self-contained — it still imports
+    // its own dependencies via root-relative paths like "/npm/xyz/+esm",
+    // meant to resolve against https://cdn.jsdelivr.net. A blob: URL has no
+    // such hierarchical base to resolve those against, so rewrite them to
+    // absolute URLs first.
+    code = code.replace(/(["'])(\/npm\/[^"']+)\1/g, (m, q, path) => q + "https://cdn.jsdelivr.net" + path + q);
+    const blob = new Blob([code], { type: "text/javascript" });
+    const blobUrl = URL.createObjectURL(blob);
+    let fontkitModule;
+    try {
+      fontkitModule = await import(/* webpackIgnore: true */ blobUrl);
+    } finally {
+      URL.revokeObjectURL(blobUrl);
+    }
+    const rawFontkit = fontkitModule.default || fontkitModule;
+
+    function makeMiniEmitter() {
+      const listeners = {};
+      return {
+        on(event, cb) { (listeners[event] = listeners[event] || []).push(cb); return this; },
+        emit(event, ...args) { (listeners[event] || []).forEach(cb => cb(...args)); },
+      };
+    }
+
+    window.fontkit = {
+      create(buffer, postscriptName) {
+        const font = rawFontkit.create(buffer, postscriptName);
+        const origCreateSubset = font.createSubset.bind(font);
+        font.createSubset = function () {
+          const subset = origCreateSubset();
+          subset.encodeStream = function () {
+            const emitter = makeMiniEmitter();
+            Promise.resolve().then(() => {
+              try {
+                const bytes = subset.encode();
+                emitter.emit("data", bytes);
+                emitter.emit("end");
+              } catch (err) {
+                emitter.emit("error", err);
+              }
+            });
+            return emitter;
+          };
+          return subset;
+        };
+        return font;
+      },
+    };
+  })();
+  return fontkitLoadPromise;
+}
+</script>
+<script>
 pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 
 const COLORS = {
@@ -560,11 +734,13 @@ const COLORS = {
   blue:   { hex: "#57B9EE", rgb: [0.34118, 0.72549, 0.93333], textHex: "#4A3427", textRgb: [0.29020, 0.20392, 0.15294] },
   green:  { hex: "#35CFA0", rgb: [0.20784, 0.81176, 0.62745], textHex: "#FFFFFF", textRgb: [1, 1, 1] },
   red:    { hex: "#FF6B5B", rgb: [1.0, 0.41961, 0.35686], textHex: "#FFFFFF", textRgb: [1, 1, 1] },
+  black:  { hex: "#221D18", rgb: [0.13333, 0.11373, 0.09412], textHex: "#FFFFFF", textRgb: [1, 1, 1] },
 };
 const DEFAULT_COLOR = "yellow";
 const DEFAULT_BORDER_WIDTH = 0;
 const DEFAULT_OPACITY = 0.30;
 const DEFAULT_FONT_SIZE = 6;
+const DEFAULT_TEXT_FONT_SIZE = 10;
 
 
 let pdfBytesOriginal = null;   // ArrayBuffer, untouched, used for export
@@ -578,9 +754,83 @@ const MAX_CANVAS_DIM = 4096;   // safety cap on backing-store pixel size
 let annotations = [];          // {id, page, x, y, w, h (pdf pts, bottom-left origin), number, note, color}
 let nextId = 1;
 let repeatMode = false;
+let slideMode = false;
+let addTextMode = false;
+let textNotes = [];       // freeform text annotations: {id, page, x, y, text, color, fontSize}
+let nextTextId = 1;
+let selectedTextId = null;
+let draggingText = null;  // {note, startCanvasPt, startX, startY}
 let lastNumber = null;
 let currentFileName = null;
+
+// ---------- Undo / Redo ----------
+let undoStack = [];
+let redoStack = [];
+const MAX_UNDO = 50;
+let suppressUndoCapture = false;
+
+function snapshotAnnotations() {
+  return {
+    annotations: JSON.parse(JSON.stringify(annotations)),
+    textNotes: JSON.parse(JSON.stringify(textNotes)),
+  };
+}
+
+function pushUndo() {
+  if (suppressUndoCapture || !pdfDocProxy) return;
+  undoStack.push(snapshotAnnotations());
+  if (undoStack.length > MAX_UNDO) undoStack.shift();
+  redoStack = []; // a new action invalidates the redo history
+  updateUndoButtonState();
+}
+
+function performUndo() {
+  if (undoStack.length === 0) return;
+  suppressUndoCapture = true;
+  redoStack.push(snapshotAnnotations());
+  if (redoStack.length > MAX_UNDO) redoStack.shift();
+  const snap = undoStack.pop();
+  annotations = snap.annotations;
+  textNotes = snap.textNotes;
+  selectedAnnId = null;
+  selectedTextId = null;
+  updateSidebar();
+  redrawOverlay();
+  suppressUndoCapture = false;
+  updateUndoButtonState();
+}
+
+function performRedo() {
+  if (redoStack.length === 0) return;
+  suppressUndoCapture = true;
+  undoStack.push(snapshotAnnotations());
+  if (undoStack.length > MAX_UNDO) undoStack.shift();
+  const snap = redoStack.pop();
+  annotations = snap.annotations;
+  textNotes = snap.textNotes;
+  selectedAnnId = null;
+  selectedTextId = null;
+  updateSidebar();
+  redrawOverlay();
+  suppressUndoCapture = false;
+  updateUndoButtonState();
+}
+
+function clearUndoHistory() {
+  undoStack = [];
+  redoStack = [];
+  updateUndoButtonState();
+}
+
+function updateUndoButtonState() {
+  const undoBtn = el("btnUndo");
+  if (undoBtn) undoBtn.disabled = undoStack.length === 0;
+  const redoBtn = el("btnRedo");
+  if (redoBtn) redoBtn.disabled = redoStack.length === 0;
+}
+
 let lastColor = DEFAULT_COLOR; // color stays per-marker; this is just the default for new ones
+let lastTextColor = "red"; // default color for new free-text notes
 let globalBorderWidth = DEFAULT_BORDER_WIDTH; // shared by all markers
 let globalOpacity = DEFAULT_OPACITY;          // shared by all markers
 let globalFontSize = DEFAULT_FONT_SIZE;       // shared by all markers
@@ -602,6 +852,30 @@ el("btnRepeatToggle").addEventListener("click", () => {
   el("btnRepeatToggle").classList.toggle("active", repeatMode);
   updateRepeatButtonLabel();
 });
+el("btnSlideToggle").addEventListener("click", () => {
+  slideMode = !slideMode;
+  el("btnSlideToggle").classList.toggle("active", slideMode);
+});
+el("btnAddTextToggle").addEventListener("click", () => {
+  addTextMode = !addTextMode;
+  el("btnAddTextToggle").classList.toggle("active", addTextMode);
+  setOverlayCursor();
+});
+el("btnUndo").addEventListener("click", performUndo);
+el("btnRedo").addEventListener("click", performRedo);
+window.addEventListener("keydown", (evt) => {
+  if (!(evt.ctrlKey || evt.metaKey)) return;
+  const key = evt.key.toLowerCase();
+  const tag = (evt.target.tagName || "").toLowerCase();
+  if (tag === "input" || tag === "textarea") return;
+  if (key === "z" && !evt.shiftKey) {
+    evt.preventDefault();
+    performUndo();
+  } else if ((key === "z" && evt.shiftKey) || key === "y") {
+    evt.preventDefault();
+    performRedo();
+  }
+});
 el("btnUploadEmpty").addEventListener("click", () => el("fileInput").click());
 el("fileInput").addEventListener("change", async (e) => {
   const file = e.target.files[0];
@@ -617,7 +891,7 @@ const canvasZone = el("canvasZone");
   const MIN_W = 130, MAX_W = 560;
   let resizing = false, startX = 0, startWidth = 0;
 
-  resizer.addEventListener("mousedown", (evt) => {
+  resizer.addEventListener("pointerdown", (evt) => {
     resizing = true;
     startX = evt.clientX;
     startWidth = sidebar.getBoundingClientRect().width;
@@ -625,13 +899,44 @@ const canvasZone = el("canvasZone");
     document.body.style.userSelect = "none";
     evt.preventDefault();
   });
-  window.addEventListener("mousemove", (evt) => {
+  window.addEventListener("pointermove", (evt) => {
     if (!resizing) return;
     const delta = evt.clientX - startX;
     const newWidth = Math.min(MAX_W, Math.max(MIN_W, startWidth - delta));
     sidebar.style.width = newWidth + "px";
   });
-  window.addEventListener("mouseup", () => {
+  window.addEventListener("pointerup", () => {
+    if (!resizing) return;
+    resizing = false;
+    resizer.classList.remove("resizing");
+    document.body.style.userSelect = "";
+  });
+})();
+
+// Drag to resize the split between the marker list and the text-note list.
+(function setupTextNoteVResize() {
+  const resizer = el("textNoteVResizer");
+  const section = el("textNoteSection");
+  const MIN_H = 60, MAX_H = 500;
+  let resizing = false, startY = 0, startHeight = 0;
+
+  resizer.addEventListener("pointerdown", (evt) => {
+    resizing = true;
+    startY = evt.clientY;
+    startHeight = section.getBoundingClientRect().height;
+    resizer.classList.add("resizing");
+    document.body.style.userSelect = "none";
+    evt.preventDefault();
+  });
+  window.addEventListener("pointermove", (evt) => {
+    if (!resizing) return;
+    // Dragging the handle up should grow the text-note section (and shrink
+    // the marker list above it), so height increases as clientY decreases.
+    const delta = evt.clientY - startY;
+    const newHeight = Math.min(MAX_H, Math.max(MIN_H, startHeight - delta));
+    section.style.height = newHeight + "px";
+  });
+  window.addEventListener("pointerup", () => {
     if (!resizing) return;
     resizing = false;
     resizer.classList.remove("resizing");
@@ -669,6 +974,17 @@ canvasZone.addEventListener("drop", async (e) => {
 });
 
 // ---------- Project file support (base64 helpers + shared state restore) ----------
+function timestampedFileName(ext) {
+  const base = currentFileName
+    ? currentFileName.replace(/\.pdf$/i, "")
+    : "新規";
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  const dateStr = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`;
+  const timeStr = `${pad(d.getHours())}${pad(d.getMinutes())}`;
+  return `${base}_${dateStr}_${timeStr}.${ext}`;
+}
+
 function bufferToBase64(buf) {
   const bytes = new Uint8Array(buf);
   let binary = "";
@@ -687,9 +1003,11 @@ function base64ToBuffer(b64) {
 
 function applyDraftState(draft) {
   annotations = draft.annotations || [];
+  textNotes = draft.textNotes || [];
   currentPage = Math.min(draft.currentPage || 1, numPages);
   scale = draft.scale || scale;
   nextId = draft.nextId || (annotations.reduce((m, a) => Math.max(m, a.id), 0) + 1);
+  nextTextId = draft.nextTextId || (textNotes.reduce((m, t) => Math.max(m, t.id), 0) + 1);
   if (annotations.length > 0) {
     const first = annotations[0];
     globalBorderWidth = first.borderWidth ?? DEFAULT_BORDER_WIDTH;
@@ -697,6 +1015,9 @@ function applyDraftState(draft) {
     globalFontSize = first.fontSize ?? DEFAULT_FONT_SIZE;
     lastColor = annotations[annotations.length - 1].color || DEFAULT_COLOR;
     syncGlobalStyleUI();
+  }
+  if (textNotes.length > 0) {
+    lastTextColor = textNotes[textNotes.length - 1].color || "red";
   }
 }
 
@@ -709,7 +1030,7 @@ function syncGlobalStyleUI() {
   opSlider.value = String(Math.round(globalOpacity * 100));
   opLabel.textContent = `塗り ${Math.round(globalOpacity * 100)}%`;
   fsSlider.value = String(globalFontSize);
-  fsLabel.textContent = `文字 ${globalFontSize}px`;
+  fsLabel.textContent = `数値 ${globalFontSize}px`;
 }
 
 // ---------- Project file (download/open) — a portable resume file the user keeps themselves ----------
@@ -720,6 +1041,7 @@ function buildProjectPayload() {
     fileName: currentFileName,
     numPages, currentPage, scale,
     annotations, nextId,
+    textNotes, nextTextId,
     savedAt: Date.now(),
     pdfBase64: bufferToBase64(pdfBytesOriginal),
   };
@@ -732,10 +1054,9 @@ el("btnExportProject").addEventListener("click", () => {
     const json = JSON.stringify(payload);
     const blob = new Blob([json], { type: "application/json" });
     const url = URL.createObjectURL(blob);
-    const baseName = (currentFileName || "drawing.pdf").replace(/\.pdf$/i, "");
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${baseName}.marker.json`;
+    a.download = timestampedFileName("json");
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -845,13 +1166,13 @@ function scheduleAutoSave() {}
     const v = parseInt(ev.target.value, 10);
     globalFontSize = v;
     annotations.forEach(a => { a.fontSize = v; });
-    fsLabel.textContent = `文字 ${v}px`;
+    fsLabel.textContent = `数値 ${v}px`;
     redrawOverlay();
   });
 })();
 
 function hasUnsavedWork() {
-  return !!pdfBytesOriginal && annotations.length > 0;
+  return !!pdfBytesOriginal && (annotations.length > 0 || textNotes.length > 0);
 }
 
 function confirmDiscardIfNeeded() {
@@ -863,7 +1184,7 @@ function confirmDiscardIfNeeded() {
 // node (like an open badge-number editor) or a dangling interaction state
 // pointing at annotations that are about to be discarded.
 function resetInteractionState() {
-  document.querySelectorAll(".badgeEditInput").forEach(elInput => elInput.remove());
+  document.querySelectorAll(".badgeEditInput, .textNoteEditInput").forEach(elInput => elInput.remove());
   drawing = false;
   dragStart = null;
   dragCurrent = null;
@@ -874,8 +1195,16 @@ function resetInteractionState() {
   movingRect = null;
   rotatingHandle = null;
   selectedAnnId = null;
+  draggingText = null;
+  selectedTextId = null;
+  textNotes = [];
+  nextTextId = 1;
+  addTextMode = false;
+  const addTextBtn = el("btnAddTextToggle");
+  if (addTextBtn) addTextBtn.classList.remove("active");
   isPanning = false;
   panStart = null;
+  clearUndoHistory();
 }
 
 async function loadPdf(file) {
@@ -908,9 +1237,11 @@ async function loadPdfCore(buf, fileName) {
   annotations = [];
   nextId = 1;
   repeatMode = false;
+  slideMode = false;
   lastNumber = null;
   selectedAnnId = null;
   el("btnRepeatToggle").classList.remove("active");
+  el("btnSlideToggle").classList.remove("active");
   updateRepeatButtonLabel();
 
   el("emptyState").style.display = "none";
@@ -1003,10 +1334,10 @@ function updatePageNav() {
 }
 
 el("prevPage").addEventListener("click", async () => {
-  if (currentPage > 1) { currentPage--; selectedAnnId = null; await renderPage(currentPage); scheduleAutoSave(); }
+  if (currentPage > 1) { currentPage--; selectedAnnId = null; selectedTextId = null; await renderPage(currentPage); scheduleAutoSave(); }
 });
 el("nextPage").addEventListener("click", async () => {
-  if (currentPage < numPages) { currentPage++; selectedAnnId = null; await renderPage(currentPage); scheduleAutoSave(); }
+  if (currentPage < numPages) { currentPage++; selectedAnnId = null; selectedTextId = null; await renderPage(currentPage); scheduleAutoSave(); }
 });
 el("zoomIn").addEventListener("click", async () => {
   const curPercent = Math.round((scale / 1.4) * 100);
@@ -1061,6 +1392,60 @@ async function zoomAtPoint(newScale, evt) {
   canvasZone.scrollTop = stackContentOffsetY + newLocal[1] - (evt.clientY - zoneRect.top);
 }
 
+// ---------- Two-finger touch: pinch to zoom, drag to pan (combined, like a
+// photo app) — tracked globally since fingers can move outside the canvas. ----------
+function endTouch(evt) {
+  activeTouches.delete(evt.pointerId);
+  if (activeTouches.size < 2) pinchState = null;
+}
+
+window.addEventListener("pointerdown", (evt) => {
+  if (evt.pointerType !== "touch" || !pdfDocProxy) return;
+  activeTouches.set(evt.pointerId, { x: evt.clientX, y: evt.clientY });
+  if (activeTouches.size === 2) {
+    // A second finger just landed — cancel any single-pointer gesture already
+    // in progress (drawing, badge drag, resize, move, rotate, one-finger pan).
+    drawing = false;
+    dragStart = null;
+    dragCurrent = null;
+    draggingBadge = null;
+    dragBadgeStartCanvasPt = null;
+    dragBadgeStartOffset = null;
+    resizingHandle = null;
+    movingRect = null;
+    rotatingHandle = null;
+    if (isPanning) {
+      isPanning = false;
+      panStart = null;
+      if (pointerLockActive && document.exitPointerLock) document.exitPointerLock();
+      pointerLockActive = false;
+    }
+    setOverlayCursor();
+    const pts = [...activeTouches.values()];
+    pinchState = { startDist: Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y), startScale: scale };
+  } else if (activeTouches.size > 2) {
+    pinchState = null; // ignore a third finger rather than jump unpredictably
+  }
+});
+
+window.addEventListener("pointermove", (evt) => {
+  if (evt.pointerType !== "touch" || !activeTouches.has(evt.pointerId)) return;
+  activeTouches.set(evt.pointerId, { x: evt.clientX, y: evt.clientY });
+  if (activeTouches.size === 2 && pinchState) {
+    evt.preventDefault();
+    const pts = [...activeTouches.values()];
+    const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+    const midClientX = (pts[0].x + pts[1].x) / 2, midClientY = (pts[0].y + pts[1].y) / 2;
+    const newScale = Math.min(10, Math.max(0.1, pinchState.startScale * (dist / pinchState.startDist)));
+    zoomAtPoint(newScale, { clientX: midClientX, clientY: midClientY });
+    scheduleBaseRender(150);
+  }
+}, { passive: false });
+
+window.addEventListener("pointerup", endTouch);
+window.addEventListener("pointercancel", endTouch);
+
+
 // ---------- Overlay drawing ----------
 function redrawOverlay() {
   overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
@@ -1071,6 +1456,70 @@ function redrawOverlay() {
   if (drawing && dragStart && dragCurrent) {
     drawPreviewRect(dragStart, dragCurrent);
   }
+  const pageTexts = textNotes.filter(t => t.page === currentPage);
+  pageTexts.forEach(t => drawTextNoteOnOverlay(t));
+}
+
+function textNoteFontCss(t) {
+  return (t.fontSize ?? DEFAULT_TEXT_FONT_SIZE) * currentViewport.scale;
+}
+
+function textNoteScreenPos(t) {
+  const p = currentViewport.convertToViewportPoint(t.x, t.y);
+  return { x: p[0], y: p[1] };
+}
+
+function textNoteScreenBox(t) {
+  const pos = textNoteScreenPos(t);
+  const fontCss = textNoteFontCss(t);
+  const lines = (t.text || "").split("\n");
+  const lineHeightCss = fontCss * 1.2;
+  overlayCtx.save();
+  overlayCtx.font = `bold ${fontCss}px "Zen Maru Gothic", -apple-system, BlinkMacSystemFont, "Hiragino Sans", sans-serif`;
+  const w = Math.max(1, ...lines.map(line => overlayCtx.measureText(line).width));
+  overlayCtx.restore();
+  const pad = 4;
+  const totalH = fontCss + (lines.length - 1) * lineHeightCss;
+  return {
+    x: pos.x - pad, y: pos.y - fontCss - pad,
+    w: w + pad * 2, h: totalH + pad * 2,
+    textX: pos.x, textY: pos.y, lineHeightCss,
+  };
+}
+
+function drawTextNoteOnOverlay(t) {
+  const color = COLORS[t.color] || COLORS[DEFAULT_COLOR];
+  const box = textNoteScreenBox(t);
+  if (t.id === selectedTextId) {
+    overlayCtx.save();
+    overlayCtx.strokeStyle = "#4A3427";
+    overlayCtx.lineWidth = 1.5;
+    overlayCtx.setLineDash([4, 3]);
+    overlayCtx.strokeRect(box.x, box.y, box.w, box.h);
+    overlayCtx.restore();
+  }
+  overlayCtx.save();
+  overlayCtx.font = `bold ${textNoteFontCss(t)}px "Zen Maru Gothic", -apple-system, BlinkMacSystemFont, "Hiragino Sans", sans-serif`;
+  overlayCtx.fillStyle = color.hex;
+  overlayCtx.textAlign = "left";
+  overlayCtx.textBaseline = "alphabetic";
+  const lines = (t.text || "").split("\n");
+  lines.forEach((line, i) => {
+    overlayCtx.fillText(line, box.textX, box.textY + i * box.lineHeightCss);
+  });
+  overlayCtx.restore();
+}
+
+function findTextNoteAt(canvasPt) {
+  const pageTexts = textNotes.filter(t => t.page === currentPage);
+  for (let i = pageTexts.length - 1; i >= 0; i--) {
+    const t = pageTexts[i];
+    const box = textNoteScreenBox(t);
+    if (canvasPt.x >= box.x && canvasPt.x <= box.x + box.w && canvasPt.y >= box.y && canvasPt.y <= box.y + box.h) {
+      return t;
+    }
+  }
+  return null;
 }
 
 function drawSelectionHandles(a) {
@@ -1134,6 +1583,15 @@ function rotateOffsetToPdf(a, offX, offY) {
 
 // The 4 corners of the rectangle in PDF space, rotated around its center.
 // Order: bottom-left, bottom-right, top-right, top-left.
+// Rotates a PDF-space point around a center by the given angle (degrees,
+// standard CCW-positive convention). Used to reposition text anchors when
+// counter-rotating for a page's own /Rotate value at export time.
+function rotatePdfPointAroundCenter(pt, center, degreesAngle) {
+  const rad = (degreesAngle * Math.PI) / 180;
+  const v = rotateVec(rad, pt.x - center.x, pt.y - center.y);
+  return { x: center.x + v.x, y: center.y + v.y };
+}
+
 function rotatedCorners(a) {
   const hw = a.w / 2, hh = a.h / 2;
   return [
@@ -1200,22 +1658,58 @@ function overlayBadgeRadiusPt(number, fontSizePt) {
 
 const BADGE_GAP = 3; // clear space between the badge's edge and the highlight, in points
 
-// Default badge offset (in points): just outside the highlight's left edge,
-// sized to the actual number so it never overlaps regardless of digit count.
-function defaultBadgeOffsetPt(number, fontSizePt) {
+// Determine which raw PDF-space axis/direction corresponds to "left on
+// screen" for the page as currently displayed. Page rotation (a PDF page
+// property, separate from any rotation the user applies to a shape) is
+// always a multiple of 90°, so this is always one of the 4 cardinal
+// directions — but which one depends on that rotation. Used so the default
+// badge position appears visually to the left regardless of page rotation.
+function screenLeftCardinalDir() {
+  if (!currentViewport) return { x: -1, y: 0 };
+  const origin = currentViewport.convertToPdfPoint(0, 0);
+  const leftPt = currentViewport.convertToPdfPoint(-100, 0);
+  const dx = leftPt[0] - origin[0], dy = leftPt[1] - origin[1];
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    return { x: dx > 0 ? 1 : -1, y: 0 };
+  }
+  return { x: 0, y: dy > 0 ? 1 : -1 };
+}
+
+// Same idea as screenLeftCardinalDir, but for "up on screen" — used to attach
+// the rotate handle to whichever local edge is visually on top, accounting
+// for the page's own rotation.
+function screenUpCardinalDir() {
+  if (!currentViewport) return { x: 0, y: 1 };
+  const origin = currentViewport.convertToPdfPoint(0, 0);
+  const upPt = currentViewport.convertToPdfPoint(0, -100); // 100px up on screen
+  const dx = upPt[0] - origin[0], dy = upPt[1] - origin[1];
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    return { x: dx > 0 ? 1 : -1, y: 0 };
+  }
+  return { x: 0, y: dy > 0 ? 1 : -1 };
+}
+
+// Default badge offset (in points), as a full local offset from the
+// rectangle's center: attaches to whichever edge is visually on the left of
+// the highlight (accounting for page rotation) and pushes out by the badge's
+// own radius + a gap, sized to the actual number so it never overlaps.
+function defaultBadgeOffsetPt(number, fontSizePt, w, h) {
   const radius = overlayBadgeRadiusPt(number, fontSizePt);
-  return { x: -(radius + BADGE_GAP), y: 0 };
+  const dist = radius + BADGE_GAP;
+  const dir = screenLeftCardinalDir();
+  const hw = (w || 0) / 2, hh = (h || 0) / 2;
+  return { x: dir.x * (hw + dist), y: dir.y * (hh + dist) };
 }
 
 function badgeCenterPt(a) {
   // The badge's position is stored as a LOCAL offset (relative to the rect's
-  // left-mid edge, in the rectangle's own unrotated frame) so it rotates
-  // together with the rectangle instead of staying fixed in absolute space.
+  // center, in the rectangle's own unrotated frame) so it rotates together
+  // with the rectangle instead of staying fixed in absolute space.
   const fontSizePt = a.fontSize ?? DEFAULT_FONT_SIZE;
-  const def = defaultBadgeOffsetPt(a.number, fontSizePt);
+  const def = defaultBadgeOffsetPt(a.number, fontSizePt, a.w, a.h);
   const offX = a.numOffsetX ?? def.x;
   const offY = a.numOffsetY ?? def.y;
-  return rotateOffsetToPdf(a, -a.w / 2 + offX, offY);
+  return rotateOffsetToPdf(a, offX, offY);
 }
 
 function nearestCorner(a) {
@@ -1313,6 +1807,8 @@ let spaceHeld = false;
 let isPanning = false;
 let panStart = null; // {clientX, clientY, scrollLeft, scrollTop} — fallback when pointer lock isn't available
 let pointerLockActive = false;
+let activeTouches = new Map(); // pointerId -> {x, y} (clientX/clientY), touch pointers only
+let pinchState = null;         // {startDist, startScale, anchorPdfX, anchorPdfY}
 let draggingBadge = null; // annotation currently being dragged by its number badge
 let dragBadgeStartCanvasPt = null;
 let dragBadgeStartOffset = null;
@@ -1345,6 +1841,8 @@ function setOverlayCursor() {
   if (resizingHandle) { overlayCanvas.style.cursor = handleCursor(resizingHandle.handle); return; }
   if (movingRect) { overlayCanvas.style.cursor = "move"; return; }
   if (rotatingHandle) { overlayCanvas.style.cursor = "grabbing"; return; }
+  if (draggingText) { overlayCanvas.style.cursor = "move"; return; }
+  if (addTextMode) { overlayCanvas.style.cursor = "text"; return; }
   overlayCanvas.style.cursor = (panMode || spaceHeld) ? "grab" : "crosshair";
 }
 
@@ -1382,11 +1880,17 @@ function rectHandlePositions(a) {
   };
 }
 
-// Position of the rotate handle: a short stem out from the top-mid edge, in
-// screen space so its distance from the shape stays constant regardless of zoom.
+// Position of the rotate handle: a short stem out from whichever local edge
+// is visually on top (accounting for page rotation), in screen space so its
+// distance from the shape stays constant regardless of zoom.
 function rotateHandlePosition(a) {
   const [bl, br, tr, tl] = rectScreenCorners(a);
-  const topMid = { x: (tr[0] + tl[0]) / 2, y: (tr[1] + tl[1]) / 2 };
+  const upDir = screenUpCardinalDir();
+  let topMid;
+  if (upDir.y === 1) topMid = { x: (tr[0] + tl[0]) / 2, y: (tr[1] + tl[1]) / 2 }; // raw +Y edge
+  else if (upDir.y === -1) topMid = { x: (bl[0] + br[0]) / 2, y: (bl[1] + br[1]) / 2 }; // raw -Y edge
+  else if (upDir.x === 1) topMid = { x: (br[0] + tr[0]) / 2, y: (br[1] + tr[1]) / 2 }; // raw +X edge
+  else topMid = { x: (bl[0] + tl[0]) / 2, y: (bl[1] + tl[1]) / 2 }; // raw -X edge
   const centerPdf = { x: a.x + a.w / 2, y: a.y + a.h / 2 };
   const centerScreen = currentViewport.convertToViewportPoint(centerPdf.x, centerPdf.y);
   const dx = topMid.x - centerScreen[0], dy = topMid.y - centerScreen[1];
@@ -1467,10 +1971,12 @@ window.addEventListener("keyup", (evt) => {
   }
 });
 
-overlayCanvas.addEventListener("mousemove", (evt) => {
-  if (drawing || draggingBadge || resizingHandle || movingRect || rotatingHandle || isPanning || panMode || spaceHeld) return;
+overlayCanvas.addEventListener("pointermove", (evt) => {
+  if (drawing || draggingBadge || draggingText || resizingHandle || movingRect || rotatingHandle || isPanning || panMode || spaceHeld) return;
   const pt = getCanvasPoint(evt);
+  if (addTextMode) { overlayCanvas.style.cursor = "text"; return; }
   if (findBadgeAt(pt)) { overlayCanvas.style.cursor = "move"; return; }
+  if (findTextNoteAt(pt)) { overlayCanvas.style.cursor = "move"; return; }
   if (selectedAnnId != null) {
     const selAnn = annotations.find(a => a.id === selectedAnnId && a.page === currentPage);
     if (selAnn) {
@@ -1491,6 +1997,12 @@ overlayCanvas.addEventListener("dblclick", (evt) => {
   if (hit) {
     evt.preventDefault();
     openBadgeNumberEditor(hit);
+    return;
+  }
+  const hitText = findTextNoteAt(pt);
+  if (hitText) {
+    evt.preventDefault();
+    openTextNoteEditor(hitText);
   }
 });
 
@@ -1523,7 +2035,8 @@ function openBadgeNumberEditor(a) {
     const raw = input.value.trim();
     const v = parseInt(raw, 10);
     if (raw !== "" && !isNaN(v)) {
-      a.number = v;
+      if (v !== a.number) { pushUndo(); }
+      if (slideMode) { insertNumberWithShift(a.id, v); } else { a.number = v; }
       lastNumber = v;
       updateRepeatButtonLabel();
       updateSidebar();
@@ -1537,7 +2050,7 @@ function openBadgeNumberEditor(a) {
     input.remove();
   }
   input.addEventListener("click", (ev) => ev.stopPropagation());
-  input.addEventListener("mousedown", (ev) => ev.stopPropagation());
+  input.addEventListener("pointerdown", (ev) => ev.stopPropagation());
   input.addEventListener("blur", commit);
   input.addEventListener("keydown", (ev) => {
     if (ev.key === "Enter") { ev.preventDefault(); commit(); }
@@ -1545,7 +2058,97 @@ function openBadgeNumberEditor(a) {
   });
 }
 
-overlayCanvas.addEventListener("mousedown", (evt) => {
+function openTextNoteEditor(note, opts) {
+  opts = opts || {};
+  const isNew = !!opts.isNew;
+  document.querySelectorAll(".textNoteEditInput, .badgeEditInput").forEach(el2 => el2.remove());
+
+  // A pointerdown with touch-action:none can leave the canvas holding implicit
+  // pointer capture, which can silently block focus from moving to a new
+  // element created mid-gesture. Release it defensively before focusing.
+  try {
+    if (overlayCanvas.hasPointerCapture) {
+      if (typeof overlayCanvas.releaseCapture === "function") overlayCanvas.releaseCapture();
+    }
+  } catch (e) { /* ignore */ }
+
+  const box = textNoteScreenBox(note);
+  const fontCss = textNoteFontCss(note);
+
+  const input = document.createElement("textarea");
+  input.rows = 1;
+  input.className = "textNoteEditInput";
+  input.value = note.text || "";
+  input.placeholder = "文字を入力";
+  input.style.left = Math.round(box.x) + "px";
+  input.style.top = Math.round(box.y) + "px";
+  input.style.width = Math.max(220, Math.round(box.w) + 10) + "px";
+  input.style.color = (COLORS[note.color] || COLORS[DEFAULT_COLOR]).hex;
+  input.style.fontSize = Math.max(11, Math.round(fontCss)) + "px";
+
+  const stack = el("canvasStack");
+  stack.appendChild(input);
+
+  function autoGrow() {
+    input.style.height = "auto";
+    input.style.height = input.scrollHeight + "px";
+  }
+  autoGrow();
+  input.addEventListener("input", autoGrow);
+
+  // Defer focus to the next tick — focusing synchronously inside the same
+  // pointerdown that created the element can be swallowed by the browser
+  // while the originating pointer gesture is still active.
+  setTimeout(() => {
+    input.focus();
+    input.select();
+  }, 0);
+
+  let done = false;
+  function commit() {
+    if (done) return;
+    done = true;
+    const raw = input.value;
+    if (raw.trim() === "") {
+      // Never typed anything — don't add a note at all. If editing an
+      // existing note down to empty, remove it instead of leaving a blank one.
+      if (!isNew) {
+        textNotes = textNotes.filter(t => t.id !== note.id);
+        if (selectedTextId === note.id) selectedTextId = null;
+      }
+    } else if (isNew) {
+      pushUndo();
+      note.text = raw;
+      textNotes.push(note);
+      selectedTextId = note.id;
+      lastAddedTextId = note.id;
+    } else if (raw !== note.text) {
+      pushUndo();
+      note.text = raw;
+    }
+    input.remove();
+    updateSidebar();
+    redrawOverlay();
+  }
+  function cancel() {
+    if (done) return;
+    done = true;
+    // isNew notes were never added to textNotes, so cancelling just discards
+    // the draft — nothing to clean up.
+    input.remove();
+    updateSidebar();
+    redrawOverlay();
+  }
+  input.addEventListener("click", (ev) => ev.stopPropagation());
+  input.addEventListener("pointerdown", (ev) => ev.stopPropagation());
+  input.addEventListener("blur", commit);
+  input.addEventListener("keydown", (ev) => {
+    if (ev.key === "Escape") { ev.preventDefault(); cancel(); }
+    else if (ev.key === "Enter") { setTimeout(autoGrow, 0); } // let it insert a newline normally
+  });
+}
+
+overlayCanvas.addEventListener("pointerdown", (evt) => {
   if (isPanRequested(evt)) {
     evt.preventDefault();
     isPanning = true;
@@ -1566,11 +2169,41 @@ overlayCanvas.addEventListener("mousedown", (evt) => {
     return;
   }
   const pt = getCanvasPoint(evt);
+
+  if (addTextMode) {
+    const pdfPt = currentViewport.convertToPdfPoint(pt.x, pt.y);
+    const note = {
+      id: nextTextId++,
+      page: currentPage,
+      x: pdfPt[0], y: pdfPt[1],
+      text: "",
+      color: lastTextColor,
+      fontSize: DEFAULT_TEXT_FONT_SIZE,
+    };
+    openTextNoteEditor(note, { isNew: true });
+    return;
+  }
+
+  const hitText = findTextNoteAt(pt);
+  if (hitText) {
+    selectedTextId = hitText.id;
+    draggingText = { note: hitText, startCanvasPt: pt, startX: hitText.x, startY: hitText.y, moved: false };
+    updateSidebar();
+    redrawOverlay();
+    setOverlayCursor();
+    return;
+  } else if (selectedTextId != null) {
+    selectedTextId = null;
+    updateSidebar();
+    redrawOverlay();
+  }
+
   const hit = findBadgeAt(pt);
   if (hit) {
+    pushUndo();
     draggingBadge = hit;
     dragBadgeStartCanvasPt = pt;
-    const d = defaultBadgeOffsetPt(hit.number, hit.fontSize ?? DEFAULT_FONT_SIZE);
+    const d = defaultBadgeOffsetPt(hit.number, hit.fontSize ?? DEFAULT_FONT_SIZE, hit.w, hit.h);
     dragBadgeStartOffset = { x: hit.numOffsetX ?? d.x, y: hit.numOffsetY ?? d.y };
     setOverlayCursor();
     return;
@@ -1582,14 +2215,15 @@ overlayCanvas.addEventListener("mousedown", (evt) => {
     if (selAnn) {
       if (findRotateHandleAt(pt, selAnn)) {
         const centerPdf = { x: selAnn.x + selAnn.w / 2, y: selAnn.y + selAnn.h / 2 };
-        const centerScreen = currentViewport.convertToViewportPoint(centerPdf.x, centerPdf.y);
-        const startMouseAngle = Math.atan2(pt.y - centerScreen[1], pt.x - centerScreen[0]);
-        rotatingHandle = { ann: selAnn, startMouseAngle, startRotation: selAnn.rotation || 0 };
+        const startPdfPt = currentViewport.convertToPdfPoint(pt.x, pt.y);
+        const startMouseAngle = Math.atan2(startPdfPt[1] - centerPdf.y, startPdfPt[0] - centerPdf.x);
+        rotatingHandle = { ann: selAnn, startMouseAngle, startRotation: selAnn.rotation || 0, startPt: pt, hasRotated: false };
         setOverlayCursor();
         return;
       }
       const handle = findHandleAt(pt, selAnn);
       if (handle) {
+        pushUndo();
         const ao = anchorOffsetForHandle(handle, selAnn.w, selAnn.h);
         const rotatedAo = rotateVec(rotationRad(selAnn), ao.x, ao.y);
         const cx = selAnn.x + selAnn.w / 2, cy = selAnn.y + selAnn.h / 2;
@@ -1603,6 +2237,7 @@ overlayCanvas.addEventListener("mousedown", (evt) => {
         return;
       }
       if (pointInRect(pt, selAnn)) {
+        pushUndo();
         movingRect = { ann: selAnn, startCanvasPt: pt, startX: selAnn.x, startY: selAnn.y };
         setOverlayCursor();
         return;
@@ -1627,7 +2262,7 @@ overlayCanvas.addEventListener("mousedown", (evt) => {
   dragStart = pt;
   dragCurrent = dragStart;
 });
-window.addEventListener("mousemove", (evt) => {
+window.addEventListener("pointermove", (evt) => {
   if (isPanning && panStart) {
     if (pointerLockActive) {
       canvasZone.scrollLeft -= evt.movementX;
@@ -1645,6 +2280,21 @@ window.addEventListener("mousemove", (evt) => {
     const localDelta = globalDeltaToLocal(draggingBadge, curPdf[0] - startPdf[0], curPdf[1] - startPdf[1]);
     draggingBadge.numOffsetX = dragBadgeStartOffset.x + localDelta.x;
     draggingBadge.numOffsetY = dragBadgeStartOffset.y + localDelta.y;
+    redrawOverlay();
+    return;
+  }
+  if (draggingText) {
+    const pt = getCanvasPoint(evt);
+    const movedPx = Math.hypot(pt.x - draggingText.startCanvasPt.x, pt.y - draggingText.startCanvasPt.y);
+    if (!draggingText.moved) {
+      if (movedPx < 4) return; // dead-zone: a plain click shouldn't count as a drag
+      draggingText.moved = true;
+      pushUndo();
+    }
+    const startPdf = currentViewport.convertToPdfPoint(draggingText.startCanvasPt.x, draggingText.startCanvasPt.y);
+    const curPdf = currentViewport.convertToPdfPoint(pt.x, pt.y);
+    draggingText.note.x = draggingText.startX + (curPdf[0] - startPdf[0]);
+    draggingText.note.y = draggingText.startY + (curPdf[1] - startPdf[1]);
     redrawOverlay();
     return;
   }
@@ -1688,13 +2338,20 @@ window.addEventListener("mousemove", (evt) => {
   }
   if (rotatingHandle) {
     const pt = getCanvasPoint(evt);
-    const { ann, startMouseAngle, startRotation } = rotatingHandle;
+    const { ann, startMouseAngle, startRotation, startPt } = rotatingHandle;
+    const movedPx = Math.hypot(pt.x - startPt.x, pt.y - startPt.y);
+    if (!rotatingHandle.hasRotated) {
+      if (movedPx < 4) return; // dead-zone: ignore tiny movement from a plain click
+      rotatingHandle.hasRotated = true;
+      pushUndo();
+    }
     const centerPdf = { x: ann.x + ann.w / 2, y: ann.y + ann.h / 2 };
-    const centerScreen = currentViewport.convertToViewportPoint(centerPdf.x, centerPdf.y);
-    const curMouseAngle = Math.atan2(pt.y - centerScreen[1], pt.x - centerScreen[0]);
-    // Screen space is y-down (angle increases clockwise); our rotation is the
-    // standard y-up counter-clockwise convention, so the delta is negated.
-    const deltaDeg = -((curMouseAngle - startMouseAngle) * 180) / Math.PI;
+    const curPdfPt = currentViewport.convertToPdfPoint(pt.x, pt.y);
+    const curMouseAngle = Math.atan2(curPdfPt[1] - centerPdf.y, curPdfPt[0] - centerPdf.x);
+    // Both angles are measured directly in PDF's native y-up space (via
+    // convertToPdfPoint), so no sign flip or extra offset is needed here —
+    // this stays correct even when the page itself has a /Rotate value.
+    const deltaDeg = ((curMouseAngle - startMouseAngle) * 180) / Math.PI;
     ann.rotation = startRotation + deltaDeg;
     redrawOverlay();
     return;
@@ -1703,7 +2360,7 @@ window.addEventListener("mousemove", (evt) => {
   dragCurrent = getCanvasPoint(evt);
   redrawOverlay();
 });
-window.addEventListener("mouseup", (evt) => {
+window.addEventListener("pointerup", (evt) => {
   if (isPanning) {
     isPanning = false;
     panStart = null;
@@ -1719,6 +2376,13 @@ window.addEventListener("mouseup", (evt) => {
     dragBadgeStartCanvasPt = null;
     dragBadgeStartOffset = null;
     setOverlayCursor();
+    scheduleAutoSave();
+    return;
+  }
+  if (draggingText) {
+    draggingText = null;
+    setOverlayCursor();
+    redrawOverlay();
     scheduleAutoSave();
     return;
   }
@@ -1790,6 +2454,7 @@ function finalizeRect(start, end) {
     showLeader: false,
     rotation: 0,
   };
+  pushUndo();
   annotations.push(ann);
   updateRepeatButtonLabel();
   lastAddedAnnId = ann.id;
@@ -1805,10 +2470,12 @@ function nextNumber() {
 
 // ---------- Sidebar ----------
 let lastAddedAnnId = null;
+let lastAddedTextId = null;
 function updateSidebar() {
   const list = el("annotationList");
   el("markerCountLabel").textContent = `マーカー ${annotations.length}件`;
   scheduleAutoSave();
+  updateTextNoteList();
 
   if (annotations.length === 0) {
     list.innerHTML = "";
@@ -1837,6 +2504,149 @@ function updateSidebar() {
   }
 }
 
+function updateTextNoteList() {
+  const section = el("textNoteSection");
+  const list = el("textNoteList");
+  const resizer = el("textNoteVResizer");
+  if (!section || !list) return;
+  if (textNotes.length === 0) {
+    section.style.display = "none";
+    if (resizer) resizer.style.display = "none";
+    list.innerHTML = "";
+    return;
+  }
+  section.style.display = "block";
+  if (resizer) resizer.style.display = "block";
+  const sorted = [...textNotes].sort((a, b) => a.page - b.page || a.id - b.id);
+  list.innerHTML = "";
+  sorted.forEach(t => list.appendChild(buildTextNoteCard(t)));
+
+  if (lastAddedTextId != null) {
+    const targetId = lastAddedTextId;
+    lastAddedTextId = null;
+    requestAnimationFrame(() => {
+      const cardEl = list.querySelector(`[data-text-id="${targetId}"]`);
+      if (cardEl) cardEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
+  }
+}
+
+function buildTextNoteCard(t) {
+  const card = document.createElement("div");
+  card.className = "textNoteCard";
+  card.dataset.textId = String(t.id);
+  card.style.borderLeftColor = (COLORS[t.color] || COLORS[DEFAULT_COLOR]).hex;
+
+  const row1 = document.createElement("div");
+  row1.className = "row1";
+
+  const pageTag = document.createElement("span");
+  pageTag.className = "pageTag";
+  pageTag.textContent = `p.${t.page}`;
+
+  const textInput = document.createElement("input");
+  textInput.type = "text";
+  textInput.value = t.text || "";
+  textInput.placeholder = "文字を入力";
+  textInput.addEventListener("click", (ev) => ev.stopPropagation());
+  textInput.addEventListener("change", (ev) => {
+    const v = ev.target.value;
+    if (v.trim() === "") {
+      pushUndo();
+      textNotes = textNotes.filter(x => x.id !== t.id);
+      if (selectedTextId === t.id) selectedTextId = null;
+      updateSidebar();
+      redrawOverlay();
+      return;
+    }
+    if (v !== t.text) {
+      pushUndo();
+      t.text = v;
+      redrawOverlay();
+    }
+  });
+
+  row1.appendChild(pageTag);
+  row1.appendChild(textInput);
+
+  const fsRow = document.createElement("div");
+  fsRow.className = "bwRow";
+  const fsLabel = document.createElement("span");
+  fsLabel.className = "bwLabel";
+  const fsVal = t.fontSize ?? DEFAULT_TEXT_FONT_SIZE;
+  fsLabel.textContent = `文字 ${fsVal}px`;
+  const fsSlider = document.createElement("input");
+  fsSlider.type = "range";
+  fsSlider.min = "6";
+  fsSlider.max = "48";
+  fsSlider.step = "1";
+  fsSlider.value = String(fsVal);
+  fsSlider.className = "bwSlider";
+  fsSlider.addEventListener("click", (ev) => ev.stopPropagation());
+  let fsUndoPushed = false;
+  fsSlider.addEventListener("input", (ev) => {
+    if (!fsUndoPushed) { pushUndo(); fsUndoPushed = true; }
+    const v = parseInt(ev.target.value, 10);
+    t.fontSize = v;
+    fsLabel.textContent = `文字 ${v}px`;
+    redrawOverlay();
+  });
+  fsSlider.addEventListener("change", () => { fsUndoPushed = false; });
+  fsRow.appendChild(fsSlider);
+  fsRow.appendChild(fsLabel);
+
+  const row2 = document.createElement("div");
+  row2.className = "row2";
+
+  const swatches = document.createElement("div");
+  swatches.className = "swatches";
+  Object.keys(COLORS).forEach(key => {
+    const sw = document.createElement("div");
+    sw.className = "swatch" + (t.color === key ? " active" : "");
+    sw.style.background = COLORS[key].hex;
+    sw.title = key;
+    sw.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      pushUndo();
+      t.color = key;
+      lastTextColor = key;
+      updateSidebar();
+      redrawOverlay();
+    });
+    swatches.appendChild(sw);
+  });
+
+  const delBtn = document.createElement("button");
+  delBtn.className = "delBtn";
+  delBtn.textContent = "削除";
+  delBtn.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    pushUndo();
+    textNotes = textNotes.filter(x => x.id !== t.id);
+    if (selectedTextId === t.id) selectedTextId = null;
+    updateSidebar();
+    redrawOverlay();
+  });
+
+  row2.appendChild(swatches);
+  row2.appendChild(delBtn);
+
+  card.appendChild(row1);
+  card.appendChild(fsRow);
+  card.appendChild(row2);
+
+  card.addEventListener("click", async () => {
+    if (t.page !== currentPage) {
+      currentPage = t.page;
+      await renderPage(currentPage);
+    }
+    selectedTextId = t.id;
+    redrawOverlay();
+  });
+
+  return card;
+}
+
 function findDuplicateNumbers() {
   const seen = new Map();
   annotations.forEach(a => seen.set(a.number, (seen.get(a.number) || 0) + 1));
@@ -1845,18 +2655,19 @@ function findDuplicateNumbers() {
   return dup;
 }
 
-function renumberAll() {
-  // Reading order: page ascending, then top-to-bottom, then left-to-right.
-  const ordered = [...annotations].sort((a, b) => {
-    if (a.page !== b.page) return a.page - b.page;
-    if (Math.abs(a.y - b.y) > 0.01) return b.y - a.y; // pdf y grows upward
-    return a.x - b.x;
-  });
-  ordered.forEach((a, i) => { a.number = i + 1; });
-  lastNumber = null;
-  updateRepeatButtonLabel();
-  updateSidebar();
-  redrawOverlay();
+// Only used when "番号をスライド" mode is active — inserting a number that
+// collides with an existing one shifts that one (and everything above it) up
+// by one instead of creating a duplicate.
+// e.g. 1–10 exist, a marker is set to 5 → old 5–10 become 6–11, this one is 5.
+function insertNumberWithShift(targetId, newNumber) {
+  const collision = annotations.some(a => a.id !== targetId && a.number === newNumber);
+  if (collision) {
+    annotations.forEach(a => {
+      if (a.id !== targetId && a.number >= newNumber) a.number += 1;
+    });
+  }
+  const target = annotations.find(a => a.id === targetId);
+  if (target) target.number = newNumber;
 }
 
 function buildAnnCard(a, isDup) {
@@ -1884,7 +2695,8 @@ function buildAnnCard(a, isDup) {
       ev.target.value = a.number; // revert
       return;
     }
-    a.number = v;
+    if (v !== a.number) { pushUndo(); }
+    if (slideMode) { insertNumberWithShift(a.id, v); } else { a.number = v; }
     lastNumber = v;
     updateRepeatButtonLabel();
     updateSidebar();
@@ -1905,6 +2717,7 @@ function buildAnnCard(a, isDup) {
   delBtn.textContent = "削除";
   delBtn.addEventListener("click", (ev) => {
     ev.stopPropagation();
+    pushUndo();
     annotations = annotations.filter(x => x.id !== a.id);
     if (selectedAnnId === a.id) selectedAnnId = null;
     updateSidebar();
@@ -1926,6 +2739,7 @@ function buildAnnCard(a, isDup) {
     sw.title = key;
     sw.addEventListener("click", (ev) => {
       ev.stopPropagation();
+      pushUndo();
       a.color = key;
       lastColor = key;
       updateSidebar();
@@ -1943,6 +2757,7 @@ function buildAnnCard(a, isDup) {
   leaderCheckbox.checked = !!a.showLeader;
   leaderCheckbox.addEventListener("click", (ev) => ev.stopPropagation());
   leaderCheckbox.addEventListener("change", (ev) => {
+    pushUndo();
     a.showLeader = ev.target.checked;
     redrawOverlay();
   });
@@ -1951,7 +2766,7 @@ function buildAnnCard(a, isDup) {
   leaderToggle.appendChild(document.createTextNode("線描写"));
   colorRow.appendChild(leaderToggle);
 
-  const annDefault = defaultBadgeOffsetPt(a.number, a.fontSize ?? DEFAULT_FONT_SIZE);
+  const annDefault = defaultBadgeOffsetPt(a.number, a.fontSize ?? DEFAULT_FONT_SIZE, a.w, a.h);
   const curOffX = a.numOffsetX ?? annDefault.x;
   const curOffY = a.numOffsetY ?? annDefault.y;
   let row2 = null;
@@ -1963,7 +2778,8 @@ function buildAnnCard(a, isDup) {
     resetBtn.textContent = "番号位置をリセット";
     resetBtn.addEventListener("click", (ev) => {
       ev.stopPropagation();
-      const d = defaultBadgeOffsetPt(a.number, a.fontSize ?? DEFAULT_FONT_SIZE);
+      pushUndo();
+      const d = defaultBadgeOffsetPt(a.number, a.fontSize ?? DEFAULT_FONT_SIZE, a.w, a.h);
       a.numOffsetX = d.x;
       a.numOffsetY = d.y;
       updateSidebar();
@@ -1994,17 +2810,15 @@ function buildAnnCard(a, isDup) {
   return card;
 }
 
-el("btnRenumber").addEventListener("click", () => {
-  if (annotations.length === 0) return;
-  renumberAll();
-});
-
 el("btnClearAll").addEventListener("click", () => {
-  if (annotations.length === 0) return;
-  if (confirm("すべてのマーカーを削除しますか？")) {
+  if (annotations.length === 0 && textNotes.length === 0) return;
+  if (confirm("すべてのマーカー・文字を削除しますか？")) {
+    pushUndo();
     annotations = [];
+    textNotes = [];
     lastNumber = null;
     selectedAnnId = null;
+    selectedTextId = null;
     updateRepeatButtonLabel();
     updateSidebar();
     redrawOverlay();
@@ -2027,6 +2841,53 @@ async function exportPdf() {
     const pages = pdfDoc.getPages();
     const font = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
+    // Helvetica only supports WinAnsi (Latin) characters. Free-text notes can
+    // contain Japanese or other non-Latin text, which needs a real Unicode
+    // font — fetched and embedded only when there's actual text to draw.
+    // A modern, correctly-fixed fontkit (loaded as window.fontkit above) lets
+    // us safely subset a comprehensive Japanese TTF, keeping the exported
+    // file small (only the actually-used glyphs are embedded) while still
+    // covering uncommon kanji correctly.
+    let jpFont = font;
+    let jpFontError = null;
+    const hasFreeText = textNotes.some(t => t.text && t.text.trim() !== "");
+    if (hasFreeText) {
+      const candidates = [
+        { url: "https://raw.githubusercontent.com/googlefonts/morisawa-biz-ud-gothic/main/fonts/ttf/BIZUDGothic-Bold.ttf", subset: true },
+        { url: "https://cdn.jsdelivr.net/gh/googlefonts/morisawa-biz-ud-gothic@main/fonts/ttf/BIZUDGothic-Bold.ttf", subset: true },
+        // Last-resort fallback if the modern fontkit failed to load or the
+        // above font is unreachable: full (un-subset) embed of a comprehensive
+        // CJK font — larger file, but has been separately verified reliable.
+        { url: "https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/OTF/Japanese/NotoSansCJKjp-Bold.otf", subset: false },
+      ];
+      let fontkitLoadErr = null;
+      try {
+        await ensureFontkitLoaded();
+      } catch (loadErr) {
+        console.error("fontkit lazy-load failed:", loadErr);
+        fontkitLoadErr = String((loadErr && loadErr.message) || loadErr);
+      }
+      if (typeof fontkit === "undefined") {
+        jpFontError = "fontkitライブラリの読み込みに失敗しました" + (fontkitLoadErr ? ": " + fontkitLoadErr : "（原因不明）");
+      } else {
+        pdfDoc.registerFontkit(fontkit);
+        for (const candidate of candidates) {
+          try {
+            const res = await fetch(candidate.url);
+            if (!res.ok) throw new Error("HTTP " + res.status + " for " + candidate.url);
+            const jpFontBytes = await res.arrayBuffer();
+            jpFont = await pdfDoc.embedFont(jpFontBytes, { subset: candidate.subset });
+            jpFontError = null;
+            break;
+          } catch (fontErr) {
+            console.error("Japanese font fetch/embed failed for", candidate.url, fontErr);
+            jpFontError = String((fontErr && fontErr.message) || fontErr);
+            jpFont = font;
+          }
+        }
+      }
+    }
+
     annotations.forEach(a => {
       const page = pages[a.page - 1];
       if (!page) return;
@@ -2035,22 +2896,30 @@ async function exportPdf() {
       const bw = a.borderWidth ?? DEFAULT_BORDER_WIDTH;
       const op = a.opacity ?? DEFAULT_OPACITY;
       const theta = a.rotation || 0;
+      const pageRotation = page.getRotation().angle || 0;
+      // NOTE: unlike text (drawn "flat" and needing counter-rotation — see
+      // below), the rectangle's x/y/w/h were already computed via
+      // convertToPdfPoint when the user drew it, which is itself aware of
+      // the page's rotation. So only the user's OWN intentional rotation
+      // (theta, from the rotate handle) needs to be passed to pdf-lib here —
+      // adding pageRotation again would rotate it a second time.
+      const effectiveTheta = theta;
 
       const rectOpts = {
         x: a.x, y: a.y, width: a.w, height: a.h,
         color: color,
         opacity: op,
       };
-      if (theta) {
+      if (effectiveTheta % 360 !== 0) {
         // pdf-lib rotates a rectangle around its own (x,y) anchor. To match
         // the preview's center-pivot rotation, move the anchor to where the
         // original bottom-left corner ends up after rotating around the
         // center (rotatedCorners()[0]) — rotating the w×h box from THAT
         // point by the same angle produces an identical result.
-        const corner0 = rotatedCorners(a)[0];
+        const corner0 = rotatedCorners({ x: a.x, y: a.y, w: a.w, h: a.h, rotation: effectiveTheta })[0];
         rectOpts.x = corner0.x;
         rectOpts.y = corner0.y;
-        rectOpts.rotate = degrees(theta);
+        rectOpts.rotate = degrees(effectiveTheta);
       }
       if (bw > 0) {
         rectOpts.borderColor = color;
@@ -2076,6 +2945,7 @@ async function exportPdf() {
           thickness: 1,
           color: color,
           opacity: 0.85,
+          dashArray: [4, 3],
         });
       }
 
@@ -2086,12 +2956,49 @@ async function exportPdf() {
         borderWidth: 1,
         opacity: 1,
       });
+      const labelRawAnchor = { x: cx - textWidth / 2, y: cy - fontSize * 0.35 };
+      const labelAnchor = pageRotation
+        ? rotatePdfPointAroundCenter(labelRawAnchor, { x: cx, y: cy }, pageRotation)
+        : labelRawAnchor;
       page.drawText(label, {
-        x: cx - textWidth / 2,
-        y: cy - fontSize * 0.35,
+        x: labelAnchor.x,
+        y: labelAnchor.y,
         size: fontSize,
         font,
         color: textColor,
+        rotate: pageRotation ? degrees(pageRotation) : undefined,
+      });
+    });
+
+    let skippedTextLines = 0;
+    textNotes.forEach(t => {
+      const page = pages[t.page - 1];
+      if (!page || !t.text) return;
+      const c = COLORS[t.color] || COLORS[DEFAULT_COLOR];
+      const color = rgb(c.rgb[0], c.rgb[1], c.rgb[2]);
+      const fontSize = t.fontSize ?? DEFAULT_TEXT_FONT_SIZE;
+      const lineHeight = fontSize * 1.2;
+      const lines = t.text.split("\n");
+      const pageRotation = page.getRotation().angle || 0;
+      const pivot = { x: t.x, y: t.y };
+      lines.forEach((line, i) => {
+        try {
+          const rawAnchor = { x: t.x, y: t.y - i * lineHeight };
+          const anchor = pageRotation
+            ? rotatePdfPointAroundCenter(rawAnchor, pivot, pageRotation)
+            : rawAnchor;
+          page.drawText(line, {
+            x: anchor.x,
+            y: anchor.y,
+            size: fontSize,
+            font: jpFont,
+            color: color,
+            rotate: pageRotation ? degrees(pageRotation) : undefined,
+          });
+        } catch (lineErr) {
+          skippedTextLines++;
+          console.error("Skipped a text-note line that couldn't be encoded:", line, lineErr);
+        }
       });
     });
 
@@ -2100,11 +3007,20 @@ async function exportPdf() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "annotated_drawing.pdf";
+    a.download = timestampedFileName("pdf");
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 5000);
+
+    if (jpFontError || skippedTextLines > 0) {
+      alert(
+        "PDFは書き出されましたが、追加した文字の一部が反映されていない可能性があります。\n\n" +
+        (jpFontError ? "日本語フォントの読み込みに失敗しました: " + jpFontError + "\n\n" : "") +
+        (skippedTextLines > 0 ? `反映できなかった行: ${skippedTextLines}件\n\n` : "") +
+        "この内容をそのままサポートに伝えていただけると、原因の特定に役立ちます。"
+      );
+    }
   } catch (err) {
     console.error(err);
     alert("書き出し中にエラーが発生しました: " + err.message);
