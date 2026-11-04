@@ -342,7 +342,14 @@
     gap: 6px;
     margin-bottom: 5px;
   }
-  .annCard .row1 .delBtn { margin-left: auto; }
+  .annCard .row1 .cardRightCol {
+    margin-left: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 3px;
+    flex-shrink: 0;
+  }
   .annCard .numBadge {
     width: 38px; height: 24px;
     min-width: 38px; max-width: 38px;
@@ -378,6 +385,40 @@
     color: var(--coral-deep);
     margin: 2px 0 6px;
   }
+  .countStepper {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--ink-soft);
+  }
+  .countStepper .countValue { white-space: nowrap; }
+  .countStepper .stepBtns {
+    display: inline-flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+  .countStepper button {
+    width: 14px; height: 10px;
+    padding: 0;
+    border: 1px solid var(--ink-soft);
+    border-radius: 3px;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--mono);
+    font-size: 9px;
+    font-weight: 700;
+    line-height: 8px;
+    box-shadow: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .countStepper button:hover:not(:disabled) { background: var(--paper-deep); color: var(--ink); }
+  .countStepper button:active:not(:disabled) { transform: translateY(1px); box-shadow: none; }
+  .countStepper button:disabled { opacity: 0.3; box-shadow: none; }
   .annCard .pageTag {
     font-family: var(--mono);
     font-size: 10px;
@@ -761,6 +802,7 @@ let nextTextId = 1;
 let selectedTextId = null;
 let draggingText = null;  // {note, startCanvasPt, startX, startY}
 let lastNumber = null;
+let lastNumbers = null; // full number list of the last-used marker (e.g. [2,3,4] or [2,7]) for "同じ番号で連続"
 let currentFileName = null;
 
 // ---------- Undo / Redo ----------
@@ -1239,6 +1281,7 @@ async function loadPdfCore(buf, fileName) {
   repeatMode = false;
   slideMode = false;
   lastNumber = null;
+  lastNumbers = null;
   selectedAnnId = null;
   el("btnRepeatToggle").classList.remove("active");
   el("btnSlideToggle").classList.remove("active");
@@ -1657,6 +1700,108 @@ function overlayBadgeRadiusPt(number, fontSizePt) {
 }
 
 const BADGE_GAP = 3; // clear space between the badge's edge and the highlight, in points
+const BADGE_OVERLAP = 1; // neighbouring circles in a multi-number badge overlap slightly so they read as one group
+const MAX_BADGE_COUNT = 30;
+
+// ---------- Multi-number badges ----------
+// A marker may carry several numbers, consecutive or not (e.g. ②③④ or ②⑦).
+// a.numbers holds the sorted list and a.number mirrors its first entry (used
+// for sorting). Older files that only have a.number (ver_3) or a.number +
+// a.count (ver_4) are still read correctly.
+function annNumbers(a) {
+  if (a && Array.isArray(a.numbers) && a.numbers.length > 0) return a.numbers;
+  const c = parseInt(a && a.count, 10);
+  const n = c > 1 ? Math.min(c, MAX_BADGE_COUNT) : 1;
+  return Array.from({ length: n }, (_, i) => a.number + i);
+}
+function annCount(a) { return annNumbers(a).length; }
+function setAnnNumbers(a, nums) {
+  const clean = [...new Set(nums)].sort((p, q) => p - q);
+  a.numbers = clean;
+  a.number = clean[0];
+  delete a.count;
+}
+// [2,3,4,7,9,10] → "2-4,7,9-10"
+function formatNumberList(nums) {
+  const parts = [];
+  for (let i = 0; i < nums.length; ) {
+    let j = i;
+    while (j + 1 < nums.length && nums[j + 1] === nums[j] + 1) j++;
+    parts.push(j - i >= 2 ? `${nums[i]}-${nums[j]}` : nums.slice(i, j + 1).join(","));
+    i = j + 1;
+  }
+  return parts.join(",");
+}
+function annLabel(a) { return formatNumberList(annNumbers(a)); }
+
+// Lays the circles out in a row along the screen's horizontal axis, centred
+// on the badge centre. Offsets/radii are in PDF points. radiusFn lets the
+// exporter use the embedded PDF font's metrics instead of the canvas's.
+function badgeLayout(a, radiusFn) {
+  const fs = a.fontSize ?? DEFAULT_FONT_SIZE;
+  const rf = radiusFn || ((n) => overlayBadgeRadiusPt(n, fs));
+  const nums = annNumbers(a);
+  const radii = nums.map(n => rf(n));
+  const total = radii.reduce((sum, r) => sum + 2 * r, 0) - BADGE_OVERLAP * (nums.length - 1);
+  let cursor = -total / 2;
+  const items = nums.map((n, i) => {
+    const r = radii[i];
+    const off = cursor + r;
+    cursor += 2 * r - BADGE_OVERLAP;
+    return { n, r, off };
+  });
+  return { items, halfW: total / 2, halfH: Math.max(...radii) };
+}
+
+// Each circle's centre in PDF space.
+function badgeCirclesPt(a, radiusFn) {
+  const center = badgeCenterPt(a);
+  const left = screenLeftCardinalDir();
+  const right = { x: -left.x, y: -left.y };
+  return badgeLayout(a, radiusFn).items.map(it => ({
+    n: it.n, r: it.r,
+    x: center.x + right.x * it.off,
+    y: center.y + right.y * it.off,
+  }));
+}
+
+// Accepts "5", "2-4", "2,7", "2-4,7", "２－４、７", "②③④⑦" … and returns
+// { numbers } (sorted, unique), { error }, or null when nothing numeric was typed.
+function parseNumberSpec(raw) {
+  let s = String(raw ?? "").trim();
+  s = s.replace(/[\u2460-\u2473]/g, ch => "," + (ch.charCodeAt(0) - 0x2460 + 1) + ",");
+  s = s.replace(/[０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0));
+  s = s.replace(/\s*[－ー―‐−–—~〜～-]\s*/g, "-");
+  s = s.replace(/[，、・.。\/／\s]+/g, ",").replace(/,+/g, ",").replace(/^,|,$/g, "");
+  if (s === "") return null;
+  const nums = [];
+  for (const tok of s.split(",")) {
+    const m = tok.match(/^(\d+)(?:-(\d+))?$/);
+    if (!m) return null;
+    let x = +m[1], y = m[2] !== undefined ? +m[2] : x;
+    if (y < x) [x, y] = [y, x];
+    if (y - x + 1 > MAX_BADGE_COUNT) return { error: `1つの枠に付けられる番号は${MAX_BADGE_COUNT}個までです` };
+    for (let n = x; n <= y; n++) nums.push(n);
+  }
+  const unique = [...new Set(nums)].sort((p, q) => p - q);
+  if (unique.length > MAX_BADGE_COUNT) return { error: `1つの枠に付けられる番号は${MAX_BADGE_COUNT}個までです` };
+  return { numbers: unique };
+}
+
+// Applies a parsed spec to a marker (handles undo + slide mode).
+function applyNumberSpec(a, spec) {
+  const cur = annNumbers(a);
+  const next = spec.numbers;
+  const changed = cur.length !== next.length || cur.some((n, i) => n !== next[i]);
+  if (changed) {
+    pushUndo();
+    if (slideMode) { insertNumberWithShift(a.id, next); }
+    else { setAnnNumbers(a, next); }
+  }
+  lastNumber = annNumbers(a)[0];
+  lastNumbers = annNumbers(a).slice();
+  return changed;
+}
 
 // Determine which raw PDF-space axis/direction corresponds to "left on
 // screen" for the page as currently displayed. Page rotation (a PDF page
@@ -1693,9 +1838,9 @@ function screenUpCardinalDir() {
 // rectangle's center: attaches to whichever edge is visually on the left of
 // the highlight (accounting for page rotation) and pushes out by the badge's
 // own radius + a gap, sized to the actual number so it never overlaps.
-function defaultBadgeOffsetPt(number, fontSizePt, w, h) {
-  const radius = overlayBadgeRadiusPt(number, fontSizePt);
-  const dist = radius + BADGE_GAP;
+function defaultBadgeOffsetPt(a) {
+  const w = a.w, h = a.h;
+  const dist = badgeLayout(a).halfW + BADGE_GAP; // group is laid out along screen-horizontal, i.e. along the "left" axis
   const dir = screenLeftCardinalDir();
   const hw = (w || 0) / 2, hh = (h || 0) / 2;
   return { x: dir.x * (hw + dist), y: dir.y * (hh + dist) };
@@ -1705,8 +1850,7 @@ function badgeCenterPt(a) {
   // The badge's position is stored as a LOCAL offset (relative to the rect's
   // center, in the rectangle's own unrotated frame) so it rotates together
   // with the rectangle instead of staying fixed in absolute space.
-  const fontSizePt = a.fontSize ?? DEFAULT_FONT_SIZE;
-  const def = defaultBadgeOffsetPt(a.number, fontSizePt, a.w, a.h);
+  const def = defaultBadgeOffsetPt(a);
   const offX = a.numOffsetX ?? def.x;
   const offY = a.numOffsetY ?? def.y;
   return rotateOffsetToPdf(a, offX, offY);
@@ -1736,8 +1880,6 @@ function drawAnnotationOnOverlay(a) {
   const op = a.opacity ?? DEFAULT_OPACITY;
   const fontSizePt = a.fontSize ?? DEFAULT_FONT_SIZE;
   const vScale = currentViewport.scale;
-  const radiusPt = overlayBadgeRadiusPt(a.number, fontSizePt);
-  const radiusCss = radiusPt * vScale;
   const fontCss = fontSizePt * vScale;
   overlayCtx.save();
   overlayCtx.beginPath();
@@ -1770,20 +1912,23 @@ function drawAnnotationOnOverlay(a) {
     overlayCtx.restore();
   }
 
-  // number badge — draggable, positioned at anchor + user offset
-  overlayCtx.beginPath();
-  overlayCtx.arc(bx, by, radiusCss, 0, Math.PI * 2);
-  overlayCtx.fillStyle = color.hex;
-  overlayCtx.fill();
-  overlayCtx.lineWidth = 1.5;
-  overlayCtx.strokeStyle = "white";
-  overlayCtx.stroke();
+  // number badge(s) — draggable as one group, positioned at anchor + user offset
+  for (const it of badgeLayout(a).items) {
+    const cx = bx + it.off * vScale;
+    overlayCtx.beginPath();
+    overlayCtx.arc(cx, by, it.r * vScale, 0, Math.PI * 2);
+    overlayCtx.fillStyle = color.hex;
+    overlayCtx.fill();
+    overlayCtx.lineWidth = 1.5;
+    overlayCtx.strokeStyle = "white";
+    overlayCtx.stroke();
 
-  overlayCtx.fillStyle = color.textHex || "white";
-  overlayCtx.font = `bold ${fontCss}px ui-monospace, monospace`;
-  overlayCtx.textAlign = "center";
-  overlayCtx.textBaseline = "middle";
-  overlayCtx.fillText(String(a.number), bx, by + 1);
+    overlayCtx.fillStyle = color.textHex || "white";
+    overlayCtx.font = `bold ${fontCss}px ui-monospace, monospace`;
+    overlayCtx.textAlign = "center";
+    overlayCtx.textBaseline = "middle";
+    overlayCtx.fillText(String(it.n), cx, by + 1);
+  }
   overlayCtx.restore();
 }
 
@@ -1862,10 +2007,11 @@ function findBadgeAt(canvasPt) {
   for (let i = pageAnns.length - 1; i >= 0; i--) {
     const a = pageAnns[i];
     const { bx, by } = badgeScreenCenter(a);
-    const radiusPt = overlayBadgeRadiusPt(a.number, a.fontSize ?? DEFAULT_FONT_SIZE);
-    const radius = radiusPt * currentViewport.scale;
-    const dx = canvasPt.x - bx, dy = canvasPt.y - by;
-    if (Math.sqrt(dx * dx + dy * dy) <= radius + 4) return a;
+    const vs = currentViewport.scale;
+    for (const it of badgeLayout(a).items) {
+      const dx = canvasPt.x - (bx + it.off * vs), dy = canvasPt.y - by;
+      if (Math.sqrt(dx * dx + dy * dy) <= it.r * vs + 4) return a;
+    }
   }
   return null;
 }
@@ -2011,15 +2157,14 @@ function openBadgeNumberEditor(a) {
   if (existing) existing.remove();
 
   const { bx, by } = badgeScreenCenter(a);
-  const radiusPt = overlayBadgeRadiusPt(a.number, a.fontSize ?? DEFAULT_FONT_SIZE);
-  const radiusCss = radiusPt * currentViewport.scale;
-  const w = Math.max(32, radiusCss * 2 + 12);
+  const halfWCss = badgeLayout(a).halfW * currentViewport.scale;
+  const w = Math.max(72, halfWCss * 2 + 12);
 
   const input = document.createElement("input");
   input.type = "text";
-  input.inputMode = "numeric";
   input.className = "badgeEditInput";
-  input.value = String(a.number);
+  input.title = "「2-4」で②③④、「2,7」で②⑦のように、1つの枠に複数の番号を付けられます";
+  input.value = annLabel(a);
   input.style.left = (bx - w / 2) + "px";
   input.style.top = (by - 13) + "px";
   input.style.width = w + "px";
@@ -2032,12 +2177,11 @@ function openBadgeNumberEditor(a) {
   function commit() {
     if (done) return;
     done = true;
-    const raw = input.value.trim();
-    const v = parseInt(raw, 10);
-    if (raw !== "" && !isNaN(v)) {
-      if (v !== a.number) { pushUndo(); }
-      if (slideMode) { insertNumberWithShift(a.id, v); } else { a.number = v; }
-      lastNumber = v;
+    const spec = parseNumberSpec(input.value);
+    if (spec && spec.error) {
+      setDraftStatus(spec.error, true);
+    } else if (spec) {
+      applyNumberSpec(a, spec);
       updateRepeatButtonLabel();
       updateSidebar();
       redrawOverlay();
@@ -2203,7 +2347,7 @@ overlayCanvas.addEventListener("pointerdown", (evt) => {
     pushUndo();
     draggingBadge = hit;
     dragBadgeStartCanvasPt = pt;
-    const d = defaultBadgeOffsetPt(hit.number, hit.fontSize ?? DEFAULT_FONT_SIZE, hit.w, hit.h);
+    const d = defaultBadgeOffsetPt(hit);
     dragBadgeStartOffset = { x: hit.numOffsetX ?? d.x, y: hit.numOffsetY ?? d.y };
     setOverlayCursor();
     return;
@@ -2420,7 +2564,7 @@ function updateRepeatButtonLabel() {
   const btn = el("btnRepeatToggle");
   if (!btn) return;
   btn.textContent = repeatMode && lastNumber !== null
-    ? `同じ番号で連続中（#${lastNumber}）`
+    ? `同じ番号で連続中（#${lastNumbers ? formatNumberList(lastNumbers) : lastNumber}）`
     : "同じ番号で連続";
 }
 
@@ -2436,14 +2580,18 @@ function finalizeRect(start, end) {
   const w = Math.abs(c2[0] - c1[0]);
   const h = Math.abs(c2[1] - c1[1]);
 
-  const assignedNumber = (repeatMode && lastNumber !== null) ? lastNumber : nextNumber();
+  const repeating = repeatMode && lastNumber !== null;
+  const assignedNumbers = repeating ? (lastNumbers ? lastNumbers.slice() : [lastNumber]) : [nextNumber()];
+  const assignedNumber = assignedNumbers[0];
   lastNumber = assignedNumber;
+  lastNumbers = assignedNumbers.slice();
 
   const ann = {
     id: nextId++,
     page: currentPage,
     x, y, w, h,
     number: assignedNumber,
+    numbers: assignedNumbers,
     note: "",
     color: lastColor,
     borderWidth: globalBorderWidth,
@@ -2462,9 +2610,9 @@ function finalizeRect(start, end) {
 }
 
 function nextNumber() {
-  const used = annotations.map(a => a.number);
+  const used = new Set(annotations.flatMap(a => annNumbers(a)));
   let n = 1;
-  while (used.includes(n)) n++;
+  while (used.has(n)) n++;
   return n;
 }
 
@@ -2492,7 +2640,7 @@ function updateSidebar() {
   const dupSet = findDuplicateNumbers();
   const sorted = [...annotations].sort((a, b) => a.number - b.number);
   list.innerHTML = "";
-  sorted.forEach(a => list.appendChild(buildAnnCard(a, dupSet.has(a.number))));
+  sorted.forEach(a => list.appendChild(buildAnnCard(a, annNumbers(a).filter(n => dupSet.has(n)))));
 
   if (lastAddedAnnId != null) {
     const targetId = lastAddedAnnId;
@@ -2649,7 +2797,7 @@ function buildTextNoteCard(t) {
 
 function findDuplicateNumbers() {
   const seen = new Map();
-  annotations.forEach(a => seen.set(a.number, (seen.get(a.number) || 0) + 1));
+  annotations.forEach(a => annNumbers(a).forEach(n => seen.set(n, (seen.get(n) || 0) + 1)));
   const dup = new Set();
   seen.forEach((count, num) => { if (count > 1) dup.add(num); });
   return dup;
@@ -2659,18 +2807,28 @@ function findDuplicateNumbers() {
 // collides with an existing one shifts that one (and everything above it) up
 // by one instead of creating a duplicate.
 // e.g. 1–10 exist, a marker is set to 5 → old 5–10 become 6–11, this one is 5.
-function insertNumberWithShift(targetId, newNumber) {
-  const collision = annotations.some(a => a.id !== targetId && a.number === newNumber);
-  if (collision) {
-    annotations.forEach(a => {
-      if (a.id !== targetId && a.number >= newNumber) a.number += 1;
-    });
-  }
+// With multi-number markers the same idea is applied to each number in turn
+// (smallest first): whenever one collides with a number already used by
+// another marker, every number ≥ it on the other markers moves up by one.
+// e.g. 1–10 exist and marker 2 becomes 2,3,4 → old 3–10 become 5–12;
+//      marker 2 becomes 2,7 → old 7–10 become 8–11.
+function insertNumberWithShift(targetId, newNumbers) {
   const target = annotations.find(a => a.id === targetId);
-  if (target) target.number = newNumber;
+  if (!target) return;
+  if (!Array.isArray(newNumbers)) newNumbers = [newNumbers];
+  const wanted = [...new Set(newNumbers)].sort((p, q) => p - q);
+  setAnnNumbers(target, wanted);
+  const others = annotations.filter(a => a.id !== targetId);
+  for (const n of wanted) {
+    if (others.some(a => annNumbers(a).includes(n))) {
+      others.forEach(a => setAnnNumbers(a, annNumbers(a).map(m => (m >= n ? m + 1 : m))));
+    }
+  }
 }
 
-function buildAnnCard(a, isDup) {
+function buildAnnCard(a, dupNums) {
+  dupNums = Array.isArray(dupNums) ? dupNums : [];
+  const isDup = dupNums.length > 0;
   const card = document.createElement("div");
   card.className = "annCard" + (isDup ? " dupWarning" : "");
   card.dataset.annId = String(a.id);
@@ -2684,20 +2842,19 @@ function buildAnnCard(a, isDup) {
   badge.inputMode = "numeric";
   badge.className = "numBadge";
   badge.style.background = COLORS[a.color].hex;
-  badge.value = a.number;
-  badge.title = "番号を編集できます";
+  badge.value = annLabel(a);
+  badge.style.width = badge.style.minWidth = badge.style.maxWidth = Math.max(38, badge.value.length * 7 + 14) + "px";
+  badge.title = "番号を編集できます（「2-4」で②③④、「2,7」で②⑦、「2-4,7」で②③④⑦）";
   badge.addEventListener("click", (ev) => ev.stopPropagation());
   badge.addEventListener("focus", (ev) => ev.target.select());
   function commitBadge(ev) {
-    const raw = ev.target.value.trim();
-    const v = parseInt(raw, 10);
-    if (raw === "" || isNaN(v)) {
-      ev.target.value = a.number; // revert
+    const spec = parseNumberSpec(ev.target.value);
+    if (!spec || spec.error) {
+      if (spec && spec.error) setDraftStatus(spec.error, true);
+      ev.target.value = annLabel(a); // revert
       return;
     }
-    if (v !== a.number) { pushUndo(); }
-    if (slideMode) { insertNumberWithShift(a.id, v); } else { a.number = v; }
-    lastNumber = v;
+    applyNumberSpec(a, spec);
     updateRepeatButtonLabel();
     updateSidebar();
     redrawOverlay();
@@ -2705,7 +2862,7 @@ function buildAnnCard(a, isDup) {
   badge.addEventListener("blur", commitBadge);
   badge.addEventListener("keydown", (ev) => {
     if (ev.key === "Enter") { ev.target.blur(); }
-    if (ev.key === "Escape") { ev.target.value = a.number; ev.target.blur(); }
+    if (ev.key === "Escape") { ev.target.value = annLabel(a); ev.target.blur(); }
   });
 
   const pageTag = document.createElement("span");
@@ -2724,9 +2881,48 @@ function buildAnnCard(a, isDup) {
     redrawOverlay();
   });
 
+  // Stepper: how many consecutive numbers this frame carries (1 → ②, 3 → ②③④)
+  const stepper = document.createElement("span");
+  stepper.className = "countStepper";
+  stepper.title = "＋で最後の番号の次を追加、−で最後の番号を外します。飛び番号は番号欄に「2,7」のように入力します";
+  const changeCount = (delta) => (ev) => {
+    ev.stopPropagation();
+    const cur = annNumbers(a);
+    let next;
+    if (delta > 0) { if (cur.length >= MAX_BADGE_COUNT) return; next = [...cur, cur[cur.length - 1] + 1]; }
+    else { if (cur.length <= 1) return; next = cur.slice(0, -1); }
+    applyNumberSpec(a, { numbers: next });
+    updateRepeatButtonLabel();
+    updateSidebar();
+    redrawOverlay();
+  };
+  const minusBtn = document.createElement("button");
+  minusBtn.type = "button";
+  minusBtn.textContent = "－";
+  minusBtn.setAttribute("aria-label", "番号を1つ減らす");
+  minusBtn.disabled = annCount(a) <= 1;
+  minusBtn.addEventListener("click", changeCount(-1));
+  const countLabel = document.createElement("span");
+  countLabel.className = "countValue";
+  countLabel.textContent = `${annCount(a)}個`;
+  const plusBtn = document.createElement("button");
+  plusBtn.type = "button";
+  plusBtn.textContent = "＋";
+  plusBtn.setAttribute("aria-label", "番号を1つ増やす");
+  plusBtn.disabled = annCount(a) >= MAX_BADGE_COUNT;
+  plusBtn.addEventListener("click", changeCount(1));
+  const stepBtns = document.createElement("span");
+  stepBtns.className = "stepBtns";
+  stepBtns.append(plusBtn, minusBtn);
+  stepper.append(countLabel, stepBtns);
+
   row1.appendChild(badge);
   row1.appendChild(pageTag);
-  row1.appendChild(delBtn);
+  // ＋－ and 削除 stacked on the right so the card never overflows its width
+  const rightCol = document.createElement("div");
+  rightCol.className = "cardRightCol";
+  rightCol.append(stepper, delBtn);
+  row1.appendChild(rightCol);
 
   const colorRow = document.createElement("div");
   colorRow.className = "colorRow";
@@ -2766,7 +2962,7 @@ function buildAnnCard(a, isDup) {
   leaderToggle.appendChild(document.createTextNode("線描写"));
   colorRow.appendChild(leaderToggle);
 
-  const annDefault = defaultBadgeOffsetPt(a.number, a.fontSize ?? DEFAULT_FONT_SIZE, a.w, a.h);
+  const annDefault = defaultBadgeOffsetPt(a);
   const curOffX = a.numOffsetX ?? annDefault.x;
   const curOffY = a.numOffsetY ?? annDefault.y;
   let row2 = null;
@@ -2779,7 +2975,7 @@ function buildAnnCard(a, isDup) {
     resetBtn.addEventListener("click", (ev) => {
       ev.stopPropagation();
       pushUndo();
-      const d = defaultBadgeOffsetPt(a.number, a.fontSize ?? DEFAULT_FONT_SIZE, a.w, a.h);
+      const d = defaultBadgeOffsetPt(a);
       a.numOffsetX = d.x;
       a.numOffsetY = d.y;
       updateSidebar();
@@ -2792,7 +2988,7 @@ function buildAnnCard(a, isDup) {
   if (isDup) {
     const notice = document.createElement("p");
     notice.className = "dupNotice";
-    notice.textContent = `番号${a.number}が重複`;
+    notice.textContent = `番号${dupNums.join("・")}が重複`;
     card.appendChild(notice);
   }
   card.appendChild(colorRow);
@@ -2817,6 +3013,7 @@ el("btnClearAll").addEventListener("click", () => {
     annotations = [];
     textNotes = [];
     lastNumber = null;
+    lastNumbers = null;
     selectedAnnId = null;
     selectedTextId = null;
     updateRepeatButtonLabel();
@@ -2929,9 +3126,7 @@ async function exportPdf() {
       page.drawRectangle(rectOpts);
 
       const fontSize = a.fontSize ?? DEFAULT_FONT_SIZE;
-      const label = String(a.number);
-      const textWidth = font.widthOfTextAtSize(label, fontSize);
-      const radius = Math.max(fontSize * 0.62, textWidth / 2) + 2.5;
+      const exportRadius = (n) => Math.max(fontSize * 0.62, font.widthOfTextAtSize(String(n), fontSize) / 2) + 2.5;
       const badgePt = badgeCenterPt(a); // same rotation-aware math as the preview
       const cx = badgePt.x, cy = badgePt.y;
       const tRgb = c.textRgb || [1, 1, 1];
@@ -2949,24 +3144,28 @@ async function exportPdf() {
         });
       }
 
-      page.drawEllipse({
-        x: cx, y: cy, xScale: radius, yScale: radius,
-        color: color,
-        borderColor: rgb(1, 1, 1),
-        borderWidth: 1,
-        opacity: 1,
-      });
-      const labelRawAnchor = { x: cx - textWidth / 2, y: cy - fontSize * 0.35 };
-      const labelAnchor = pageRotation
-        ? rotatePdfPointAroundCenter(labelRawAnchor, { x: cx, y: cy }, pageRotation)
-        : labelRawAnchor;
-      page.drawText(label, {
-        x: labelAnchor.x,
-        y: labelAnchor.y,
-        size: fontSize,
-        font,
-        color: textColor,
-        rotate: pageRotation ? degrees(pageRotation) : undefined,
+      badgeCirclesPt(a, exportRadius).forEach(ci => {
+        page.drawEllipse({
+          x: ci.x, y: ci.y, xScale: ci.r, yScale: ci.r,
+          color: color,
+          borderColor: rgb(1, 1, 1),
+          borderWidth: 1,
+          opacity: 1,
+        });
+        const label = String(ci.n);
+        const textWidth = font.widthOfTextAtSize(label, fontSize);
+        const labelRawAnchor = { x: ci.x - textWidth / 2, y: ci.y - fontSize * 0.35 };
+        const labelAnchor = pageRotation
+          ? rotatePdfPointAroundCenter(labelRawAnchor, { x: ci.x, y: ci.y }, pageRotation)
+          : labelRawAnchor;
+        page.drawText(label, {
+          x: labelAnchor.x,
+          y: labelAnchor.y,
+          size: fontSize,
+          font,
+          color: textColor,
+          rotate: pageRotation ? degrees(pageRotation) : undefined,
+        });
       });
     });
 
